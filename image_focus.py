@@ -20,9 +20,6 @@ import numpy
 # global funcion for non verbose printing
 verbose = lambda *a, **k: None
 
-# Name of the application window
-WINDOW_NAME = 'Image focus'
-
 # All allowed image extensions
 ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.png', '.jpeg']
 
@@ -59,6 +56,26 @@ def load_image(path, filename):
     """Get image object or None from given path and filename."""
 
     return cv2.imread(os.path.join(path, filename))
+
+
+def get_images(path):
+    """Get all image filenames from given path.
+
+    Function is non recursive meaning that subdirectories are not checked.
+    Returned list is sorted lexicographically and only contains files with
+    allowed extensions.
+    """
+
+    try:
+        files = os.listdir(path)
+    except IOError as err:
+        sys.stderr.write(f"Cannot open directory '{path}'\n{err}\n")
+        sys.exit(1)
+
+    images = [file for file in files if file.endswith(tuple(ALLOWED_IMAGE_EXTENSIONS))]
+    images.sort()
+
+    return images
 
 
 class Worker(threading.Thread):
@@ -115,26 +132,6 @@ class Worker(threading.Thread):
                 focus = get_image_focus(image)
                 if filename in self._image_map:
                     self._image_map[filename]['focus'] = focus
-
-
-def get_images(path):
-    """Get all image filenames from given path.
-
-    Function is non recursive meaning that subdirectories are not checked.
-    Returned list is sorted lexicographically and only contains files with
-    allowed extensions.
-    """
-
-    try:
-        files = os.listdir(path)
-    except IOError as err:
-        sys.stderr.write(f"Cannot open directory '{path}'\n{err}\n")
-        sys.exit(1)
-
-    images = [file for file in files if file.endswith(tuple(ALLOWED_IMAGE_EXTENSIONS))]
-    images.sort()
-
-    return images
 
 
 class ImageHandler:
@@ -285,49 +282,92 @@ class ImageHandler:
         return True
 
 
-def render_images(left, right):
-    """Render given image objects next to each other.
+class DisplayHandler:
 
-    If heights of both images are different, bigger one is resized.
-    """
+    def __init__(self, windows):
+        self._windows = windows
 
-    imleft = left['image']
-    imright = right['image']
+        for window in self._windows:
+            cv2.namedWindow(window, cv2.WINDOW_NORMAL)
+            cv2.resizeWindow(window, 1280, 640)
 
-    # first resize images to same height
-    left_height, left_width, _ = imleft.shape
-    right_height, right_width, _ = imright.shape
+    def _embed_text(cls, image, focus, filename):
+        cv2.putText(image, f"Focus: {focus:.2f}", (50, 140),
+                    cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 255), thickness=20)
+        cv2.putText(image, filename, (50, 280),
+                    cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), thickness=12)
 
-    if left_height < right_height:
-        new_width = int((left_height / right_height) * right_width)
-        imright = cv2.resize(imright, (new_width, left_height))
-        imleft = imleft.copy()
+    def end(self):
+        cv2.destroyAllWindows()
 
-        right_height, right_width, _ = imright.shape
-    else:
-        new_width = int((right_height / left_height) * left_width)
-        imleft = cv2.resize(imleft, (new_width, right_height))
-        imright = imright.copy()
+    def toggle_fullscreen(self):
+        for window in self._windows:
+            if not cv2.getWindowProperty(window, cv2.WND_PROP_FULLSCREEN):
+                cv2.setWindowProperty(window, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+            else:
+                cv2.setWindowProperty(window, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
 
+
+class MultiDisplayHandler(DisplayHandler):
+
+    # Name of the application windows
+    WINDOW_LEFT_NAME = 'Image focus - left'
+    WINDOW_RIGHT_NAME = 'Image focus - right'
+
+    def __init__(self):
+        super().__init__([self.WINDOW_LEFT_NAME, self.WINDOW_RIGHT_NAME])
+
+    def render(self, left, right):
+        imleft = left['image'].copy()
+        imright = right['image'].copy()
+
+        # embed focus strings into both images
+        self._embed_text(imleft, left['focus'], left['filename'])
+        self._embed_text(imright, right['focus'], right['filename'])
+
+        cv2.imshow(self.WINDOW_LEFT_NAME, imleft)
+        cv2.imshow(self.WINDOW_RIGHT_NAME, imright)
+        cv2.waitKey(1)  # needed to display the image
+
+
+class SingleDisplayHandler(DisplayHandler):
+
+    # Name of the application window
+    WINDOW_NAME = 'Image focus'
+
+    def __init__(self):
+        super().__init__([self.WINDOW_NAME])
+
+    def render(self, left, right):
+        imleft = left['image']
+        imright = right['image']
+
+        # first resize images to same height
         left_height, left_width, _ = imleft.shape
+        right_height, right_width, _ = imright.shape
 
-    # embed focus strings into both images
-    cv2.putText(imleft, f"Focus: {left['focus']:.2f}", (50, 140),
-                cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 255), thickness=20)
-    cv2.putText(imright, f"Focus: {right['focus']:.2f}", (50, 140),
-                cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 255), thickness=20)
+        if left_height < right_height:
+            new_width = int((left_height / right_height) * right_width)
+            imright = cv2.resize(imright, (new_width, left_height))
+            imleft = imleft.copy()
 
-    # embed filename info both images
-    cv2.putText(imleft, left['filename'], (50, 280),
-                cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), thickness=12)
-    cv2.putText(imright, right['filename'], (50, 280),
-                cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), thickness=12)
+            right_height, right_width, _ = imright.shape
+        else:
+            new_width = int((right_height / left_height) * left_width)
+            imleft = cv2.resize(imleft, (new_width, right_height))
+            imright = imright.copy()
 
-    # merge and display whole image
-    image = numpy.hstack((imleft, imright))
+            left_height, left_width, _ = imleft.shape
 
-    cv2.imshow(WINDOW_NAME, image)
-    cv2.waitKey(1)  # needed to display the image
+        # embed focus strings into both images
+        self._embed_text(imleft, left['focus'], left['filename'])
+        self._embed_text(imright, right['focus'], right['filename'])
+
+        # merge and display whole image
+        image = numpy.hstack((imleft, imright))
+
+        cv2.imshow(self.WINDOW_NAME, image)
+        cv2.waitKey(1)  # needed to display the image
 
 
 def main():
@@ -340,6 +380,8 @@ def main():
                         help="focus treshold for auto choosing (default 0)")
     parser.add_argument("-w", "--without-threading", action='store_true',
                         help="disable background preloading")
+    parser.add_argument("-m", "--multi-window", action='store_true',
+                        help="display in multiple windows")
 
     args = vars(parser.parse_args())
 
@@ -362,15 +404,17 @@ def main():
     if not args['without_threading']:
         handler.start_worker()
 
-    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(WINDOW_NAME, 1280, 640)
+    if args['multi_window']:
+        display = MultiDisplayHandler()
+    else:
+        display = SingleDisplayHandler()
 
     rerender = True
     while True:
 
         if rerender:
             left, right = handler.current
-            render_images(left, right)
+            display.render(left, right)
 
         rerender = False
 
@@ -385,7 +429,6 @@ def main():
             rerender = handler.roll_left()
 
         elif key in [KEYBOARD.A, KEYBOARD.D, KEYBOARD.S]:
-
             if key == KEYBOARD.A:
                 filename = handler.left['filename']
                 handler.delete_left()
@@ -395,7 +438,6 @@ def main():
                 handler.delete_right()
 
             elif key == KEYBOARD.S:
-
                 difference = handler.left['focus'] - handler.right['focus']
 
                 if abs(difference) < args['treshold']:
@@ -414,13 +456,10 @@ def main():
             rerender = True
 
         elif key == KEYBOARD.F:
-            if not cv2.getWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN):
-                cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-            else:
-                cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+            display.toggle_fullscreen()
 
         elif key == KEYBOARD.X:
-            cv2.destroyWindow(WINDOW_NAME)
+            display.end()
             handler.end_worker()
             break
 
@@ -428,7 +467,7 @@ def main():
             verbose(f"Key {key} pressed.")
 
         if len(handler) < 2:
-            cv2.destroyWindow(WINDOW_NAME)
+            display.end()
             handler.end_worker()
             break
 
