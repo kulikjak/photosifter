@@ -43,6 +43,8 @@ class KEYBOARD(enum.IntEnum):
     F = 102
     S = 115
     X = 120
+    Y = 121
+    Z = 122
 
 
 def get_image_focus(image):
@@ -162,6 +164,7 @@ class ImageHandler:
         self._idx = 0
         self._worker = None
         self._job_queue = None
+        self._backup = None
 
     def __len__(self):
         return len(self._filenames)
@@ -215,6 +218,8 @@ class ImageHandler:
     def delete_left(self):
         """Delete current left image from the carousel"""
         key = self._filenames[self._idx]
+        self._backup = (self._idx, self._filenames[self._idx], self._images[key])
+
         del self._filenames[self._idx]
         del self._images[key]
 
@@ -227,6 +232,8 @@ class ImageHandler:
     def delete_right(self):
         """Delete current right image from the carousel"""
         key = self._filenames[self._idx + 1]
+        self._backup = (self._idx + 1, self._filenames[self._idx + 1], self._images[key])
+
         del self._filenames[self._idx + 1]
         del self._images[key]
 
@@ -235,6 +242,18 @@ class ImageHandler:
             self._load(self._idx - self.PRELOAD_RANGE)
         else:
             self._load(self._idx + self.PRELOAD_RANGE + 1)
+
+    def restore_last(self):
+        """Restore last deleted image."""
+        if not self._backup:
+            return None
+
+        idx, filename, image = self._backup
+        self._backup = None
+
+        self._filenames.insert(idx, filename)
+        self._images[filename] = image
+        return filename
 
     @property
     def left(self):
@@ -454,6 +473,14 @@ def main():
             new_path = os.path.join(args['images'], "deleted", filename)
             os.rename(old_path, new_path)
             rerender = True
+
+        elif key in [KEYBOARD.Y, KEYBOARD.Z]:
+            restored = handler.restore_last()
+            if restored:
+                new_path = os.path.join(args['images'], restored)
+                old_path = os.path.join(args['images'], "deleted", restored)
+                os.rename(old_path, new_path)
+                rerender = True
 
         elif key == KEYBOARD.F:
             display.toggle_fullscreen()
