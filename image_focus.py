@@ -75,6 +75,8 @@ def get_images(path):
         sys.exit(1)
 
     images = [file for file in files if file.endswith(tuple(ALLOWED_IMAGE_EXTENSIONS))]
+    # FIX: This simple sorting function incorrectly puts files with parenthesis before
+    # those witthout which is not correct for most images taken in the same second.
     images.sort()
 
     return images
@@ -393,7 +395,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", action='store_true')
-    parser.add_argument("-i", "--images", required=True,
+    parser.add_argument("images",
                         help="path to the directory with images")
     parser.add_argument("-t", "--treshold", default=0,
                         help="focus treshold for auto choosing (default 0)")
@@ -411,7 +413,7 @@ def main():
         verbose = print
 
     if not filenames:
-        sys.stderr.write("There are no images to display.")
+        sys.stderr.write("There are no images to display.\n")
         sys.exit(2)
 
     try:
