@@ -68,6 +68,10 @@ def get_images(path):
     allowed extensions.
     """
 
+    def compare(item):
+        # This might be more efficient, but it works well
+        return item.replace('.', chr(0x01))
+
     try:
         files = os.listdir(path)
     except IOError as err:
@@ -75,9 +79,7 @@ def get_images(path):
         sys.exit(1)
 
     images = [file for file in files if file.endswith(tuple(ALLOWED_IMAGE_EXTENSIONS))]
-    # FIX: This simple sorting function incorrectly puts files with parenthesis before
-    # those witthout which is not correct for most images taken in the same second.
-    images.sort()
+    images.sort(key=compare)
 
     return images
 
