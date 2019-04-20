@@ -41,6 +41,9 @@ class KEYBOARD(enum.IntEnum):
     A = 97
     D = 100
     F = 102
+    J = 106
+    K = 107
+    L = 108
     S = 115
     X = 120
     Y = 121
@@ -307,8 +310,13 @@ class ImageHandler:
 
 class DisplayHandler:
 
+    DISPLAY_LEFT = 0
+    DISPLAY_RIGHT = 1
+    DISPLAY_BOTH = 2
+
     def __init__(self, windows):
         self._windows = windows
+        self._display_type = DisplayHandler.DISPLAY_BOTH
 
         for window in self._windows:
             cv2.namedWindow(window, cv2.WINDOW_NORMAL)
@@ -319,6 +327,13 @@ class DisplayHandler:
                     cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 255), thickness=20)
         cv2.putText(image, filename, (50, 280),
                     cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), thickness=12)
+
+    def set_display(self, dtype):
+        if self._display_type == dtype:
+            return False
+
+        self._display_type = dtype
+        return True
 
     def end(self):
         cv2.destroyAllWindows()
@@ -365,29 +380,37 @@ class SingleDisplayHandler(DisplayHandler):
         imleft = left['image']
         imright = right['image']
 
-        # first resize images to same height
-        left_height, left_width, _ = imleft.shape
-        right_height, right_width, _ = imright.shape
-
-        if left_height < right_height:
-            new_width = int((left_height / right_height) * right_width)
-            imright = cv2.resize(imright, (new_width, left_height))
-            imleft = imleft.copy()
-
-            right_height, right_width, _ = imright.shape
-        else:
-            new_width = int((right_height / left_height) * left_width)
-            imleft = cv2.resize(imleft, (new_width, right_height))
-            imright = imright.copy()
-
+        if self._display_type == DisplayHandler.DISPLAY_BOTH:
+            # first resize images to same height
             left_height, left_width, _ = imleft.shape
+            right_height, right_width, _ = imright.shape
 
-        # embed focus strings into both images
-        self._embed_text(imleft, left['focus'], left['filename'])
-        self._embed_text(imright, right['focus'], right['filename'])
+            if left_height < right_height:
+                new_width = int((left_height / right_height) * right_width)
+                imright = cv2.resize(imright, (new_width, left_height))
+                imleft = imleft.copy()
 
-        # merge and display whole image
-        image = numpy.hstack((imleft, imright))
+                right_height, right_width, _ = imright.shape
+            else:
+                new_width = int((right_height / left_height) * left_width)
+                imleft = cv2.resize(imleft, (new_width, right_height))
+                imright = imright.copy()
+
+                left_height, left_width, _ = imleft.shape
+
+            # embed focus strings into both images
+            self._embed_text(imleft, left['focus'], left['filename'])
+            self._embed_text(imright, right['focus'], right['filename'])
+
+            # merge and display whole image
+            image = numpy.hstack((imleft, imright))
+
+        elif self._display_type == DisplayHandler.DISPLAY_LEFT:
+            image = imleft.copy()
+            self._embed_text(image, left['focus'], left['filename'])
+        else:
+            image = imright.copy()
+            self._embed_text(image, right['focus'], right['filename'])
 
         cv2.imshow(self.WINDOW_NAME, image)
         cv2.waitKey(1)  # needed to display the image
@@ -493,6 +516,14 @@ def main():
             display.end()
             handler.end_worker()
             break
+
+        elif key in [KEYBOARD.J, KEYBOARD.K, KEYBOARD.L]:
+            if key == KEYBOARD.J:
+                rerender = display.set_display(DisplayHandler.DISPLAY_LEFT)
+            elif key == KEYBOARD.L:
+                rerender = display.set_display(DisplayHandler.DISPLAY_RIGHT)
+            else:
+                rerender = display.set_display(DisplayHandler.DISPLAY_BOTH)
 
         else:
             verbose(f"Key {key} pressed.")
