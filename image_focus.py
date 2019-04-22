@@ -419,7 +419,8 @@ class SingleDisplayHandler(DisplayHandler):
         cv2.waitKey(1)  # needed to display the image
 
 
-def main():
+def get_parser():
+    """Get argument parser object."""
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -435,7 +436,8 @@ def main():
            F                    toggle fullscreen
         """))
 
-    parser.add_argument("-v", "--verbose", action='store_true')
+    parser.add_argument("-v", "--verbose", action='store_true',
+                        help="show more verbose console output")
     parser.add_argument("images",
                         help="path to the directory with images")
     parser.add_argument("-t", "--treshold", default=0,
@@ -445,6 +447,12 @@ def main():
     parser.add_argument("-m", "--multi-window", action='store_true',
                         help="display in multiple windows")
 
+    return parser
+
+
+def main():
+
+    parser = get_parser()
     args = vars(parser.parse_args())
 
     filenames = get_images(args['images'])
