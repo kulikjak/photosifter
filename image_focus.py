@@ -47,6 +47,7 @@ class KEYBOARD(enum.IntEnum):
     J = 106
     K = 107
     L = 108
+    P = 112
     S = 115
     X = 120
     Y = 121
@@ -319,17 +320,19 @@ class DisplayHandler:
 
     def __init__(self, windows):
         self._windows = windows
+        self._enable_text_embeding = True
         self._display_type = DisplayHandler.DISPLAY_BOTH
 
         for window in self._windows:
             cv2.namedWindow(window, cv2.WINDOW_NORMAL)
             cv2.resizeWindow(window, 1280, 640)
 
-    def _embed_text(cls, image, focus, filename):
-        cv2.putText(image, f"Focus: {focus:.2f}", (50, 140),
-                    cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 255), thickness=20)
-        cv2.putText(image, filename, (50, 280),
-                    cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), thickness=12)
+    def _embed_text(self, image, focus, filename):
+        if self._enable_text_embeding:
+            cv2.putText(image, f"Focus: {focus:.2f}", (50, 140),
+                        cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 255), thickness=20)
+            cv2.putText(image, filename, (50, 280),
+                        cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), thickness=12)
 
     def set_display(self, dtype):
         if self._display_type == dtype:
@@ -337,6 +340,9 @@ class DisplayHandler:
 
         self._display_type = dtype
         return True
+
+    def toggle_text_embeding(self):
+        self._enable_text_embeding = not self._enable_text_embeding
 
     def end(self):
         cv2.destroyAllWindows()
@@ -535,6 +541,10 @@ def main():
 
         elif key == KEYBOARD.F:
             display.toggle_fullscreen()
+
+        elif key == KEYBOARD.P:
+            display.toggle_text_embeding()
+            rerender = True
 
         elif key in [KEYBOARD.ESC, KEYBOARD.X]:
             display.end()
