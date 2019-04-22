@@ -36,6 +36,8 @@ class KEYBOARD(enum.IntEnum):
     """Enum containing all used keyboard keys."""
 
     ESC = 27
+    COMMA = 44
+    DOT = 46
     LEFT = 81
     RIGHT = 83
     A = 97
@@ -468,10 +470,10 @@ def main():
         while key == -1:
             key = cv2.waitKey(1000)
 
-        if key == KEYBOARD.LEFT:
+        if key in [KEYBOARD.LEFT, KEYBOARD.COMMA]:
             rerender = handler.roll_right()
 
-        elif key == KEYBOARD.RIGHT:
+        elif key in [KEYBOARD.RIGHT, KEYBOARD.DOT]:
             rerender = handler.roll_left()
 
         elif key in [KEYBOARD.A, KEYBOARD.D, KEYBOARD.S]:
