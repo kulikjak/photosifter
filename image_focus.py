@@ -12,6 +12,7 @@ import enum
 import os
 import queue
 import sys
+import textwrap
 import threading
 
 import cv2
@@ -420,7 +421,20 @@ class SingleDisplayHandler(DisplayHandler):
 
 def main():
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent("""
+        keyboard shortcuts:
+           <Left> ,             move left
+           <Right> .            move right
+           <Esc> X              close the application
+           J K L                switch between view modes
+           Y Z                  revert last deletion
+           A D                  delete left/right image
+           S                    delete image with worse focus value
+           F                    toggle fullscreen
+        """))
+
     parser.add_argument("-v", "--verbose", action='store_true')
     parser.add_argument("images",
                         help="path to the directory with images")
@@ -514,7 +528,7 @@ def main():
         elif key == KEYBOARD.F:
             display.toggle_fullscreen()
 
-        elif key == KEYBOARD.X:
+        elif key in [KEYBOARD.ESC, KEYBOARD.X]:
             display.end()
             handler.end_worker()
             break
