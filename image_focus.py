@@ -15,6 +15,8 @@ import sys
 import textwrap
 import threading
 
+from collections import deque
+
 import cv2
 import numpy
 
@@ -131,12 +133,13 @@ class ImageHandler:
     # All allowed image extensions
     ALLOWED_IMAGE_EXTENSIONS = ('.jpg', '.png', '.jpeg')
 
-    def __init__(self, path, with_threading=True):
+    def __init__(self, path, with_threading=True, backup_maxlen=None):
         """Initialize image handler class.
 
         arguments:
             path           -- path to the folder with images
             with_threading -- whether to use additional image loading thread
+            backup_maxlen  -- maximum size of the backup deque
 
         Class loads and further handles all images from given directory (it is
         non recursive meaning that subdirectories are not checked) By default
@@ -147,7 +150,7 @@ class ImageHandler:
         self._idx = 0
         self._worker = None
         self._job_queue = None
-        self._backup = None
+        self._backup = deque(maxlen=backup_maxlen)
         self._path = path
 
         files = os.listdir(path)  # Throws IOError
@@ -218,7 +221,7 @@ class ImageHandler:
     def delete_left(self):
         """Delete current left image from the carousel"""
         key = self._filenames[self._idx]
-        self._backup = (self._idx, self._filenames[self._idx], self._images[key])
+        self._backup.append((self._idx, self._filenames[self._idx], self._images[key]))
 
         del self._filenames[self._idx]
         del self._images[key]
@@ -232,7 +235,7 @@ class ImageHandler:
     def delete_right(self):
         """Delete current right image from the carousel"""
         key = self._filenames[self._idx + 1]
-        self._backup = (self._idx + 1, self._filenames[self._idx + 1], self._images[key])
+        self._backup.append((self._idx + 1, self._filenames[self._idx + 1], self._images[key]))
 
         del self._filenames[self._idx + 1]
         del self._images[key]
@@ -245,11 +248,10 @@ class ImageHandler:
 
     def restore_last(self):
         """Restore last deleted image."""
-        if not self._backup:
+        try:
+            idx, filename, image = self._backup.pop()
+        except IndexError:
             return None
-
-        idx, filename, image = self._backup
-        self._backup = None
 
         self._filenames.insert(idx, filename)
         self._images[filename] = image
@@ -431,6 +433,8 @@ def get_parser():
                         help="focus treshold for auto choosing (default 0)")
     parser.add_argument("-m", "--multi-window", action='store_true',
                         help="display in multiple windows")
+    parser.add_argument("-l", "--backup-maxlen", default=None, type=int,
+                        help="limit size of the backup buffer")
     parser.add_argument("-w", "--without-threading", action='store_false',
                         help="disable background preloading",
                         dest='with_threading')
@@ -449,7 +453,7 @@ def main():
         verbose = print
 
     try:
-        handler = ImageHandler(args.images, args.with_threading)
+        handler = ImageHandler(args.images, args.with_threading, args.backup_maxlen)
     except IOError as err:
         sys.stderr.write(f"Cannot open directory '{args.images}'\n{err}\n")
         sys.exit(1)
