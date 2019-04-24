@@ -21,9 +21,6 @@ import numpy
 # global funcion for non verbose printing
 verbose = lambda *a, **k: None
 
-# All allowed image extensions
-ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.png', '.jpeg']
-
 
 class JOB(enum.Enum):
     """Enum containing job types for background thread worker."""
@@ -67,30 +64,6 @@ def load_image(path, filename):
     return cv2.imread(os.path.join(path, filename))
 
 
-def get_images(path):
-    """Get all image filenames from given path.
-
-    Function is non recursive meaning that subdirectories are not checked.
-    Returned list is sorted lexicographically and only contains files with
-    allowed extensions.
-    """
-
-    def compare(item):
-        # This might be more efficient, but it works well
-        return item.replace('.', chr(0x01))
-
-    try:
-        files = os.listdir(path)
-    except IOError as err:
-        sys.stderr.write(f"Cannot open directory '{path}'\n{err}\n")
-        sys.exit(1)
-
-    images = [file for file in files if file.endswith(tuple(ALLOWED_IMAGE_EXTENSIONS))]
-    images.sort(key=compare)
-
-    return images
-
-
 class Worker(threading.Thread):
     """Background worker class."""
 
@@ -98,11 +71,11 @@ class Worker(threading.Thread):
     AUTOMATIC_FOCUS = True
 
     def __init__(self, job_queue, image_map, path):
-        """Initialize background thread.
+        """Initialize background image preloading thread.
 
         arguments:
             job_queue -- priority queue with worker jobs
-            image_map -- dict with filenames as keys for preloaded values
+            image_map -- map for preloaded images
             path      -- path to folder with images
         """
         threading.Thread.__init__(self)
@@ -155,27 +128,43 @@ class ImageHandler:
 
     PRELOAD_RANGE = 8
 
-    def __init__(self, path, filenames):
+    # All allowed image extensions
+    ALLOWED_IMAGE_EXTENSIONS = ('.jpg', '.png', '.jpeg')
+
+    def __init__(self, path, with_threading=True):
         """Initialize image handler class.
 
         arguments:
-            path      -- path to the folder with images
-            filenames -- list of filenames
+            path           -- path to the folder with images
+            with_threading -- whether to use additional image loading thread
 
-        Background worker is not initialized here - it is rather created and
-        ran from the 'start_worker' member function.
+        Class loads and further handles all images from given directory (it is
+        non recursive meaning that subdirectories are not checked) By default
+        images in handler are sorted lexicographically and only contains files
+        with allowed extensions.
         """
-
-        self._path = path
-        self._filenames = filenames
-        self._images = {filename: {"filename": filename,
-                                   "focus": None,
-                                   "image": None} for filename in filenames}
 
         self._idx = 0
         self._worker = None
         self._job_queue = None
         self._backup = None
+        self._path = path
+
+        files = os.listdir(path)  # Throws IOError
+        self._filenames = [file for file in files if file.endswith(self.ALLOWED_IMAGE_EXTENSIONS)]
+        # NOTE: This way of sorting might not be the most efficient, but it works well
+        self._filenames.sort(key=lambda item: item.replace('.', chr(0x01)))
+
+        self._images = {filename: {"filename": filename,
+                                   "focus": None,
+                                   "image": None} for filename in self._filenames}
+
+        if with_threading:
+            self._start_worker()
+
+    def __del__(self):
+        if self._worker:
+            self._end_worker()
 
     def __len__(self):
         return len(self._filenames)
@@ -283,11 +272,8 @@ class ImageHandler:
         """Get both current images in one tuple"""
         return self.left, self.right
 
-    def start_worker(self):
+    def _start_worker(self):
         """Start background worker."""
-        if self._worker is not None:
-            return False
-
         size = len(self._images)
         self._job_queue = queue.PriorityQueue()
 
@@ -300,16 +286,11 @@ class ImageHandler:
 
         self._worker = Worker(self._job_queue, self._images, self._path)
         self._worker.start()
-        return True
 
-    def end_worker(self):
+    def _end_worker(self):
         """Stop background worker."""
-        if self._worker is None:
-            return False
-
         self._job_queue.put((0, (JOB.EXIT, None)))
         self._worker.join()
-        return True
 
 
 class DisplayHandler:
@@ -326,6 +307,9 @@ class DisplayHandler:
         for window in self._windows:
             cv2.namedWindow(window, cv2.WINDOW_NORMAL)
             cv2.resizeWindow(window, 1280, 640)
+
+    def __del__(self):
+        cv2.destroyAllWindows()
 
     def _embed_text(self, image, focus, filename):
         if self._enable_text_embeding:
@@ -344,9 +328,6 @@ class DisplayHandler:
     def toggle_text_embeding(self):
         self._enable_text_embeding = not self._enable_text_embeding
 
-    def end(self):
-        cv2.destroyAllWindows()
-
     def toggle_fullscreen(self):
         for window in self._windows:
             if not cv2.getWindowProperty(window, cv2.WND_PROP_FULLSCREEN):
@@ -357,7 +338,7 @@ class DisplayHandler:
 
 class MultiDisplayHandler(DisplayHandler):
 
-    # Name of the application windows
+    # Name of application windows
     WINDOW_LEFT_NAME = 'Image focus - left'
     WINDOW_RIGHT_NAME = 'Image focus - right'
 
@@ -448,39 +429,41 @@ def get_parser():
                         help="path to the directory with images")
     parser.add_argument("-t", "--treshold", default=0,
                         help="focus treshold for auto choosing (default 0)")
-    parser.add_argument("-w", "--without-threading", action='store_true',
-                        help="disable background preloading")
     parser.add_argument("-m", "--multi-window", action='store_true',
                         help="display in multiple windows")
+    parser.add_argument("-w", "--without-threading", action='store_false',
+                        help="disable background preloading",
+                        dest='with_threading')
 
     return parser
 
 
 def main():
 
+    # get argument parser and parse given arguments
     parser = get_parser()
-    args = vars(parser.parse_args())
+    args = parser.parse_args()
 
-    filenames = get_images(args['images'])
-
-    if args['verbose']:
+    if args.verbose:
         global verbose
         verbose = print
 
-    if not filenames:
+    try:
+        handler = ImageHandler(args.images, args.with_threading)
+    except IOError as err:
+        sys.stderr.write(f"Cannot open directory '{args.images}'\n{err}\n")
+        sys.exit(1)
+
+    if len(handler) < 2:
         sys.stderr.write("There are no images to display.\n")
         sys.exit(2)
 
     try:
-        os.mkdir(f"{args['images']}/deleted")
+        os.mkdir(f"{args.images}/deleted")
     except FileExistsError:
         pass
 
-    handler = ImageHandler(args['images'], filenames)
-    if not args['without_threading']:
-        handler.start_worker()
-
-    if args['multi_window']:
+    if args.multi_window:
         display = MultiDisplayHandler()
     else:
         display = SingleDisplayHandler()
@@ -516,7 +499,7 @@ def main():
             elif key == KEYBOARD.S:
                 difference = handler.left['focus'] - handler.right['focus']
 
-                if abs(difference) < args['treshold']:
+                if abs(difference) < args.treshold:
                     continue
 
                 elif difference > 0:
@@ -526,16 +509,16 @@ def main():
                     filename = handler.left['filename']
                     handler.delete_left()
 
-            old_path = os.path.join(args['images'], filename)
-            new_path = os.path.join(args['images'], "deleted", filename)
+            old_path = os.path.join(args.images, filename)
+            new_path = os.path.join(args.images, "deleted", filename)
             os.rename(old_path, new_path)
             rerender = True
 
         elif key in [KEYBOARD.Y, KEYBOARD.Z]:
             restored = handler.restore_last()
             if restored:
-                new_path = os.path.join(args['images'], restored)
-                old_path = os.path.join(args['images'], "deleted", restored)
+                new_path = os.path.join(args.images, restored)
+                old_path = os.path.join(args.images, "deleted", restored)
                 os.rename(old_path, new_path)
                 rerender = True
 
@@ -547,8 +530,6 @@ def main():
             rerender = True
 
         elif key in [KEYBOARD.ESC, KEYBOARD.X]:
-            display.end()
-            handler.end_worker()
             break
 
         elif key in [KEYBOARD.J, KEYBOARD.K, KEYBOARD.L]:
@@ -563,9 +544,10 @@ def main():
             verbose(f"Key {key} pressed.")
 
         if len(handler) < 2:
-            display.end()
-            handler.end_worker()
             break
+
+    del display
+    del handler
 
 
 if __name__ == "__main__":
