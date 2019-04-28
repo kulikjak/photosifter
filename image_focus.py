@@ -23,6 +23,9 @@ import numpy
 # global funcion for non verbose printing
 verbose = lambda *a, **k: None
 
+# Maximum amount of images displayed at the same time
+MAXIMUM_DISPLAY_SIZE = 6
+
 
 class JOB(enum.Enum):
     """Enum containing job types for background thread worker."""
@@ -32,38 +35,130 @@ class JOB(enum.Enum):
     EXIT = 3
 
 
+class BORDER(enum.Enum):
+    BLUE = [100, 0, 0]
+
+
 class KEYBOARD(enum.IntEnum):
     """Enum containing all used keyboard keys."""
 
     ESC = 27
     COMMA = 44
     DOT = 46
+    ONE = 49
     LEFT = 81
     RIGHT = 83
     A = 97
     D = 100
     F = 102
-    J = 106
-    K = 107
-    L = 108
     P = 112
+    R = 114
     S = 115
     X = 120
     Y = 121
     Z = 122
 
 
-def get_image_focus(image):
-    """Get focus value of given image."""
+class Image:
 
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    return cv2.Laplacian(gray, cv2.CV_64F).var()
+    def __init__(self, filename, path):
 
+        self._filename = filename
+        self._path = path
 
-def load_image(path, filename):
-    """Get image object or None from given path and filename."""
+        self._deleted = False
+        self._focus = None
+        self._base_image = None
+        self._image_map = {}
 
-    return cv2.imread(os.path.join(path, filename))
+    def load_image(self, focus_only=False):
+
+        def _load_image(path, filename):
+            """Get image object or None from given path and filename."""
+            return cv2.imread(os.path.join(path, filename))
+
+        def _get_image_focus(image):
+            """Get focus value of given image."""
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            return cv2.Laplacian(gray, cv2.CV_64F).var()
+
+        # Do nothing if image is deleted
+        if self._deleted:
+            return
+
+        # Nothing to load if base image already exists
+        if self._base_image is not None:
+            return
+
+        # Nothing to do if focus was already calculated
+        if focus_only and self._focus is not None:
+            return
+
+        image = _load_image(self._path, self._filename)
+        self._focus = _get_image_focus(image)
+
+        if not focus_only:
+            self._base_image = image
+
+    def deload_image(self):
+        self._base_image = None
+        self._image_map = {}
+
+    def get(self, height=None):
+
+        # Load image if it is not loaded
+        if self._base_image is None:
+            self.load_image()
+
+        # Return original image if no height was specified
+        if height is None:
+            return self._base_image
+
+        # Return cached image from the image map
+        if height in self._image_map:
+            return self._image_map[height]
+
+        current_height, current_width, _ = self._base_image.shape
+        new_width = int((height / current_height) * current_width)
+        resized = cv2.resize(self._base_image, (new_width, height))
+
+        self._image_map[height] = resized
+        return resized
+
+    def delete(self):
+        if self._deleted:
+            return
+
+        self._deleted = True
+        self.deload_image()
+
+        old_file = os.path.join(self._path, self._filename)
+        self._path = os.path.join(self._path, "deleted")
+        new_file = os.path.join(self._path, self._filename)
+        os.rename(old_file, new_file)
+
+    def restore(self):
+        if not self._deleted:
+            return
+
+        self._deleted = False
+
+        old_file = os.path.join(self._path, self._filename)
+        self._path, _ = os.path.split(self._path)
+        new_file = os.path.join(self._path, self._filename)
+        os.rename(old_file, new_file)
+
+    @property
+    def deleted(self):
+        return self._deleted
+
+    @property
+    def focus(self):
+        return self._focus
+
+    @property
+    def filename(self):
+        return self._filename
 
 
 class Worker(threading.Thread):
@@ -72,17 +167,15 @@ class Worker(threading.Thread):
     # Automatically load image focus when first loading the actual image
     AUTOMATIC_FOCUS = True
 
-    def __init__(self, job_queue, image_map, path):
+    def __init__(self, job_queue, image_map):
         """Initialize background image preloading thread.
 
         arguments:
             job_queue -- priority queue with worker jobs
             image_map -- map for preloaded images
-            path      -- path to folder with images
         """
         threading.Thread.__init__(self)
 
-        self._path = path
         self._queue = job_queue
         self._image_map = image_map
 
@@ -98,28 +191,13 @@ class Worker(threading.Thread):
             if job is JOB.EXIT:
                 break
 
-            # check if image was not deleted since the job was added into the queue
-            if filename not in self._image_map:
-                continue
-
             # preload image itself
             elif job is JOB.LOAD_IMAGE:
-                image = load_image(self._path, filename)
-                if filename in self._image_map:
-                    self._image_map[filename]['image'] = image
-
-                if self.AUTOMATIC_FOCUS:
-                    # we can save focus of this image right away as well
-                    if self._image_map[filename]['focus'] is None:
-                        focus = get_image_focus(image)
-                        self._image_map[filename]['focus'] = focus
+                self._image_map[filename].load_image()
 
             # calculate focus of an image
             elif job is JOB.CALC_FOCUS:
-                image = load_image(self._path, filename)
-                focus = get_image_focus(image)
-                if filename in self._image_map:
-                    self._image_map[filename]['focus'] = focus
+                self._image_map[filename].load_image(focus_only=True)
 
 
 class ImageHandler:
@@ -158,9 +236,7 @@ class ImageHandler:
         # NOTE: This way of sorting might not be the most efficient, but it works well
         self._filenames.sort(key=lambda item: item.replace('.', chr(0x01)))
 
-        self._images = {filename: {"filename": filename,
-                                   "focus": None,
-                                   "image": None} for filename in self._filenames}
+        self._images = {filename: Image(filename, path) for filename in self._filenames}
 
         if with_threading:
             self._start_worker()
@@ -171,6 +247,18 @@ class ImageHandler:
 
     def __len__(self):
         return len(self._filenames)
+
+    def __getitem__(self, key):
+
+        if isinstance(key, int):
+            key = self._filenames[key]
+        elif not isinstance(key, str):
+            raise TypeError("Key must be of instance 'int' or 'str'")
+
+        return self._images[key]
+
+    def get_relative(self, idx):
+        return self.__getitem__(self._idx + idx)
 
     def _load(self, idx):
         if self._worker is None:
@@ -184,19 +272,7 @@ class ImageHandler:
     def _deload(self, idx):
         if 0 <= idx <= len(self._filenames) - 2:
             verbose(f'Main: deload image {idx}')
-            key = self._filenames[idx]
-            self._images[key]['image'] = None
-
-    def _get_image(self, key):
-        single = self._images[key]
-
-        # handle lazy background worker
-        if single['image'] is None:
-            single['image'] = load_image(self._path, key)
-        if single['focus'] is None:
-            single['focus'] = get_image_focus(single['image'])
-
-        return single
+            self.__getitem__(idx).deload()
 
     def roll_right(self):
         """Move the image carousel one image to the right"""
@@ -210,7 +286,7 @@ class ImageHandler:
 
     def roll_left(self):
         """Move the image carousel one image to the left"""
-        if self._idx >= len(self._filenames) - 2:
+        if self._idx >= len(self._filenames) - 1:
             return False
 
         self._idx += 1
@@ -218,61 +294,47 @@ class ImageHandler:
         self._deload(self._idx - self.PRELOAD_RANGE * 2)
         return True
 
-    def delete_left(self):
-        """Delete current left image from the carousel"""
-        key = self._filenames[self._idx]
-        self._backup.append((self._idx, self._filenames[self._idx], self._images[key]))
+    def delete_image(self, offset, total):
+        idx = self._idx + offset
+        try:
+            obj = self.__getitem__(idx)
+        except IndexError:
+            return None
 
-        del self._filenames[self._idx]
-        del self._images[key]
+        self._backup.append((idx, obj))
 
-        if self._idx > 0:
+        del self._filenames[idx]
+        obj.delete()
+
+        if self._idx > 0 and total/2 > offset:
             self._idx -= 1
             self._load(self._idx - self.PRELOAD_RANGE)
         else:
             self._load(self._idx + self.PRELOAD_RANGE + 1)
 
-    def delete_right(self):
-        """Delete current right image from the carousel"""
-        key = self._filenames[self._idx + 1]
-        self._backup.append((self._idx + 1, self._filenames[self._idx + 1], self._images[key]))
-
-        del self._filenames[self._idx + 1]
-        del self._images[key]
-
-        if self._idx > len(self._images) - 2:
-            self._idx -= 1
-            self._load(self._idx - self.PRELOAD_RANGE)
-        else:
-            self._load(self._idx + self.PRELOAD_RANGE + 1)
+        return obj
 
     def restore_last(self):
         """Restore last deleted image."""
         try:
-            idx, filename, image = self._backup.pop()
+            idx, obj = self._backup.pop()
         except IndexError:
             return None
 
+        filename = obj.filename
         self._filenames.insert(idx, filename)
-        self._images[filename] = image
+        self._images[filename].restore()
         return filename
 
-    @property
-    def left(self):
-        """Get current left image"""
-        key = self._filenames[self._idx]
-        return self._get_image(key)
+    def get_list(self, limit):
+        objects = []
+        try:
+            for i in range(limit):
+                objects.append(self.__getitem__(self._idx + i))
+        except IndexError:
+            pass
 
-    @property
-    def right(self):
-        """Get current right image"""
-        key = self._filenames[self._idx + 1]
-        return self._get_image(key)
-
-    @property
-    def current(self):
-        """Get both current images in one tuple"""
-        return self.left, self.right
+        return objects
 
     def _start_worker(self):
         """Start background worker."""
@@ -286,7 +348,7 @@ class ImageHandler:
         for i in range(2, min(self.PRELOAD_RANGE + 1, len(self._filenames))):
             self._job_queue.put((i, (JOB.LOAD_IMAGE, self._filenames[i])))
 
-        self._worker = Worker(self._job_queue, self._images, self._path)
+        self._worker = Worker(self._job_queue, self._images)
         self._worker.start()
 
     def _end_worker(self):
@@ -297,114 +359,70 @@ class ImageHandler:
 
 class DisplayHandler:
 
-    DISPLAY_LEFT = 0
-    DISPLAY_RIGHT = 1
-    DISPLAY_BOTH = 2
+    # Name of the application window
+    WINDOW_NAME = "XDisplay Handler"
 
-    def __init__(self, windows):
-        self._windows = windows
+    def __init__(self):
+
         self._enable_text_embeding = True
-        self._display_type = DisplayHandler.DISPLAY_BOTH
+        self._current = None
 
-        for window in self._windows:
-            cv2.namedWindow(window, cv2.WINDOW_NORMAL)
-            cv2.resizeWindow(window, 1280, 640)
+        cv2.namedWindow(self.WINDOW_NAME, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(self.WINDOW_NAME, 1280, 640)
 
     def __del__(self):
-        cv2.destroyAllWindows()
+        cv2.destroyWindow(self.WINDOW_NAME)
 
     def _embed_text(self, image, focus, filename):
-        if self._enable_text_embeding:
-            cv2.putText(image, f"Focus: {focus:.2f}", (50, 140),
-                        cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 255), thickness=20)
-            cv2.putText(image, filename, (50, 280),
-                        cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), thickness=12)
+        if not self._enable_text_embeding:
+            return
 
-    def set_display(self, dtype):
-        if self._display_type == dtype:
-            return False
-
-        self._display_type = dtype
-        return True
+        cv2.putText(image, f"Focus: {focus:.2f}", (50, 140),
+                    cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 255), thickness=20)
+        cv2.putText(image, filename, (50, 280),
+                    cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), thickness=12)
 
     def toggle_text_embeding(self):
         self._enable_text_embeding = not self._enable_text_embeding
 
     def toggle_fullscreen(self):
-        for window in self._windows:
-            if not cv2.getWindowProperty(window, cv2.WND_PROP_FULLSCREEN):
-                cv2.setWindowProperty(window, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-            else:
-                cv2.setWindowProperty(window, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
-
-
-class MultiDisplayHandler(DisplayHandler):
-
-    # Name of application windows
-    WINDOW_LEFT_NAME = 'Image focus - left'
-    WINDOW_RIGHT_NAME = 'Image focus - right'
-
-    def __init__(self):
-        super().__init__([self.WINDOW_LEFT_NAME, self.WINDOW_RIGHT_NAME])
-
-    def render(self, left, right):
-        imleft = left['image'].copy()
-        imright = right['image'].copy()
-
-        # embed focus strings into both images
-        self._embed_text(imleft, left['focus'], left['filename'])
-        self._embed_text(imright, right['focus'], right['filename'])
-
-        cv2.imshow(self.WINDOW_LEFT_NAME, imleft)
-        cv2.imshow(self.WINDOW_RIGHT_NAME, imright)
-        cv2.waitKey(1)  # needed to display the image
-
-
-class SingleDisplayHandler(DisplayHandler):
-
-    # Name of the application window
-    WINDOW_NAME = 'Image focus'
-
-    def __init__(self):
-        super().__init__([self.WINDOW_NAME])
-
-    def render(self, left, right):
-        imleft = left['image']
-        imright = right['image']
-
-        if self._display_type == DisplayHandler.DISPLAY_BOTH:
-            # first resize images to same height
-            left_height, left_width, _ = imleft.shape
-            right_height, right_width, _ = imright.shape
-
-            if left_height < right_height:
-                new_width = int((left_height / right_height) * right_width)
-                imright = cv2.resize(imright, (new_width, left_height))
-                imleft = imleft.copy()
-
-                right_height, right_width, _ = imright.shape
-            else:
-                new_width = int((right_height / left_height) * left_width)
-                imleft = cv2.resize(imleft, (new_width, right_height))
-                imright = imright.copy()
-
-                left_height, left_width, _ = imleft.shape
-
-            # embed focus strings into both images
-            self._embed_text(imleft, left['focus'], left['filename'])
-            self._embed_text(imright, right['focus'], right['filename'])
-
-            # merge and display whole image
-            image = numpy.hstack((imleft, imright))
-
-        elif self._display_type == DisplayHandler.DISPLAY_LEFT:
-            image = imleft.copy()
-            self._embed_text(image, left['focus'], left['filename'])
+        if not cv2.getWindowProperty(self.WINDOW_NAME, cv2.WND_PROP_FULLSCREEN):
+            cv2.setWindowProperty(self.WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         else:
-            image = imright.copy()
-            self._embed_text(image, right['focus'], right['filename'])
+            cv2.setWindowProperty(self.WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+
+    def render_border(self, border=None):
+        if not isinstance(border, BORDER) and border is not None:
+            raise ValueError("Argument 'border' must be either from BORDER enum or None")
+
+        if border is None:
+            image = self._current
+        else:
+            image = cv2.copyMakeBorder(self._current, 60, 60, 0, 0,
+                                       borderType=cv2.BORDER_CONSTANT,
+                                       value=border.value)
 
         cv2.imshow(self.WINDOW_NAME, image)
+        cv2.waitKey(1)
+
+    def render(self, image_objects):
+
+        min_height = min(obj.get().shape[0] for obj in image_objects)
+
+        complete = None
+        for obj in image_objects:
+
+            image = obj.get(min_height).copy()
+            self._embed_text(image, obj.focus, obj.filename)
+
+            if complete is None:
+                complete = image
+            else:
+                complete = numpy.hstack((complete, image))
+
+        self._current = complete
+
+        cv2.imshow(self.WINDOW_NAME, complete)
         cv2.waitKey(1)  # needed to display the image
 
 
@@ -420,8 +438,9 @@ def get_parser():
            <Esc> X              close the application
            J K L                switch between view modes
            Y Z                  revert last deletion
-           A D                  delete left/right image
+           A D                  delete left/right image (only in DISPLAY_BOTH mode)
            S                    delete image with worse focus value
+                                   (deletes current in DISPLAY_lEFT or DISPLAY_RIGHT modes)
            F                    toggle fullscreen
         """))
 
@@ -463,21 +482,25 @@ def main():
         sys.exit(2)
 
     try:
-        os.mkdir(f"{args.images}/deleted")
+        os.mkdir(os.path.join(args.images, 'deleted'))
     except FileExistsError:
         pass
+    except OSError as err:
+        sys.stderr.write(f"Cannot create 'deleted' folder.\n{err}\n")
+        sys.exit(3)
 
-    if args.multi_window:
-        display = MultiDisplayHandler()
-    else:
-        display = SingleDisplayHandler()
+    display = DisplayHandler()
 
+    resize_mode = False
+
+    amount = 2
     rerender = True
+
     while True:
 
         if rerender:
-            left, right = handler.current
-            display.render(left, right)
+            image_objects = handler.get_list(amount)
+            display.render(image_objects)
 
         rerender = False
 
@@ -492,39 +515,37 @@ def main():
             rerender = handler.roll_left()
 
         elif key in [KEYBOARD.A, KEYBOARD.D, KEYBOARD.S]:
-            if key == KEYBOARD.A:
-                filename = handler.left['filename']
-                handler.delete_left()
 
-            elif key == KEYBOARD.D:
-                filename = handler.right['filename']
-                handler.delete_right()
-
-            elif key == KEYBOARD.S:
-                difference = handler.left['focus'] - handler.right['focus']
-
-                if abs(difference) < args.treshold:
+            if amount == 1:
+                if key != KEYBOARD.D:
                     continue
+                idx = 0
 
-                elif difference > 0:
-                    filename = handler.right['filename']
-                    handler.delete_right()
-                else:
-                    filename = handler.left['filename']
-                    handler.delete_left()
+            elif amount == 2 and len(handler) > 1:
 
-            old_path = os.path.join(args.images, filename)
-            new_path = os.path.join(args.images, "deleted", filename)
-            os.rename(old_path, new_path)
+                if key == KEYBOARD.A:
+                    idx = 0
+                elif key == KEYBOARD.D:
+                    idx = 1
+
+                elif key == KEYBOARD.S:
+                    difference = handler.get_relative(0).focus - handler.get_relative(1).focus
+
+                    if abs(difference) < args.treshold:
+                        continue
+
+                    idx = int(difference > 0)
+
+            else:
+                # These convenient key bindings do nothing for more concatenated photos
+                continue
+
+            handler.delete_image(idx, amount)
             rerender = True
 
         elif key in [KEYBOARD.Y, KEYBOARD.Z]:
-            restored = handler.restore_last()
-            if restored:
-                new_path = os.path.join(args.images, restored)
-                old_path = os.path.join(args.images, "deleted", restored)
-                os.rename(old_path, new_path)
-                rerender = True
+            handler.restore_last()
+            rerender = True
 
         elif key == KEYBOARD.F:
             display.toggle_fullscreen()
@@ -533,16 +554,25 @@ def main():
             display.toggle_text_embeding()
             rerender = True
 
+        elif key == KEYBOARD.R:
+            if resize_mode:
+                display.render_border()
+            else:
+                display.render_border(BORDER.BLUE)
+            resize_mode = not resize_mode
+
         elif key in [KEYBOARD.ESC, KEYBOARD.X]:
             break
 
-        elif key in [KEYBOARD.J, KEYBOARD.K, KEYBOARD.L]:
-            if key == KEYBOARD.J:
-                rerender = display.set_display(DisplayHandler.DISPLAY_LEFT)
-            elif key == KEYBOARD.L:
-                rerender = display.set_display(DisplayHandler.DISPLAY_RIGHT)
+        elif KEYBOARD.ONE <= key < KEYBOARD.ONE + MAXIMUM_DISPLAY_SIZE:
+
+            value = key - ord('0')
+            if resize_mode:
+                resize_mode = False
+                amount = value
             else:
-                rerender = display.set_display(DisplayHandler.DISPLAY_BOTH)
+                handler.delete_image(value - 1, amount)
+            rerender = True
 
         else:
             verbose(f"Key {key} pressed.")
