@@ -357,7 +357,7 @@ class ImageHandler:
 class DisplayHandler:
 
     # Name of the application window
-    WINDOW_NAME = "XDisplay Handler"
+    WINDOW_NAME = "Display Handler"
 
     def __init__(self):
 
@@ -568,6 +568,8 @@ def main():
                 resize_mode = False
                 amount = value
             else:
+                if value > amount:
+                    continue
                 handler.delete_image(value - 1, amount)
             rerender = True
 
