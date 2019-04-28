@@ -167,37 +167,35 @@ class Worker(threading.Thread):
     # Automatically load image focus when first loading the actual image
     AUTOMATIC_FOCUS = True
 
-    def __init__(self, job_queue, image_map):
+    def __init__(self, job_queue):
         """Initialize background image preloading thread.
 
         arguments:
             job_queue -- priority queue with worker jobs
-            image_map -- map for preloaded images
         """
         threading.Thread.__init__(self)
 
         self._queue = job_queue
-        self._image_map = image_map
 
     def run(self):
 
         while True:
             _, item = self._queue.get()
-            job, filename = item
-
-            verbose(f"Background job: {job.name} : {filename}")
+            job, obj = item
 
             # stop thread and return back to main one
             if job is JOB.EXIT:
                 break
 
+            verbose(f"Background job: {job.name} : {obj.filename}")
+
             # preload image itself
-            elif job is JOB.LOAD_IMAGE:
-                self._image_map[filename].load_image()
+            if job is JOB.LOAD_IMAGE:
+                obj.load_image()
 
             # calculate focus of an image
             elif job is JOB.CALC_FOCUS:
-                self._image_map[filename].load_image(focus_only=True)
+                obj.load_image(focus_only=True)
 
 
 class ImageHandler:
@@ -266,8 +264,7 @@ class ImageHandler:
 
         if 0 <= idx <= len(self._filenames) - 2:
             verbose(f'Main: load image {idx}')
-            key = self._filenames[idx]
-            self._job_queue.put((5, (JOB.LOAD_IMAGE, key)))
+            self._job_queue.put((5, (JOB.LOAD_IMAGE, self.__getitem__(idx))))
 
     def _deload(self, idx):
         if 0 <= idx <= len(self._filenames) - 2:
@@ -343,12 +340,12 @@ class ImageHandler:
 
         # fill queue with focus jobs and non loaded images
         for i, filename in enumerate(self._filenames):
-            self._job_queue.put((size + i, (JOB.CALC_FOCUS, filename)))
+            self._job_queue.put((size + i, (JOB.CALC_FOCUS, self.__getitem__(filename))))
 
         for i in range(2, min(self.PRELOAD_RANGE + 1, len(self._filenames))):
-            self._job_queue.put((i, (JOB.LOAD_IMAGE, self._filenames[i])))
+            self._job_queue.put((i, (JOB.LOAD_IMAGE, self.__getitem__(i))))
 
-        self._worker = Worker(self._job_queue, self._images)
+        self._worker = Worker(self._job_queue)
         self._worker.start()
 
     def _end_worker(self):
