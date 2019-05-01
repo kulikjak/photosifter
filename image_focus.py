@@ -37,6 +37,7 @@ class JOB(enum.Enum):
 
 class BORDER(enum.Enum):
     BLUE = [100, 0, 0]
+    GREEN = [0, 100, 0]
 
 
 class KEYBOARD(enum.IntEnum):
@@ -51,6 +52,7 @@ class KEYBOARD(enum.IntEnum):
     A = 97
     D = 100
     F = 102
+    L = 108
     P = 112
     R = 114
     S = 115
@@ -311,6 +313,10 @@ class ImageHandler:
 
         return obj
 
+    def swap_images(self, first, second):
+        self._filenames[self._idx + first], self._filenames[self._idx + second] = \
+            self._filenames[self._idx + second], self._filenames[self._idx + first]
+
     def restore_last(self):
         """Restore last deleted image."""
         try:
@@ -489,6 +495,8 @@ def main():
     display = DisplayHandler()
 
     resize_mode = False
+    swap_mode = False
+    swap_first = 0
 
     amount = 2
     rerender = True
@@ -551,6 +559,14 @@ def main():
             display.toggle_text_embeding()
             rerender = True
 
+        elif key == KEYBOARD.L:
+            if swap_mode:
+                display.render_border()
+            else:
+                display.render_border(BORDER.GREEN)
+            swap_first = 0
+            swap_mode = not swap_mode
+
         elif key == KEYBOARD.R:
             if resize_mode:
                 display.render_border()
@@ -567,6 +583,15 @@ def main():
             if resize_mode:
                 resize_mode = False
                 amount = value
+            elif swap_mode:
+                if value > amount:
+                    continue
+                if swap_first:
+                    swap_mode = False
+                    handler.swap_images(swap_first - 1, value - 1)
+                else:
+                    swap_first = value
+                    continue
             else:
                 if value > amount:
                     continue
