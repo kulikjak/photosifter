@@ -1,3 +1,6 @@
+import os
+from argparse import Namespace
+
 from apiclient.discovery import build
 from httplib2 import Http
 from oauth2client import client, file, tools
@@ -15,11 +18,24 @@ class GooglePhotosLibrary:
             # Request read and write access without the sharing one
             SCOPES = 'https://www.googleapis.com/auth/photoslibrary'
 
+            # If credentials file doesn't exist, create it to prevert warnings
+            if not os.path.isfile('credentials.json'):
+                open('credentials.json', 'a').close()
+
             store = file.Storage('credentials.json')
             creds = store.get()
             if not creds or creds.invalid:
+
+                # Check that client_server file exists
+                if not os.path.isfile('client_secret.json'):
+                    raise OSError(2, "No such file or directory", "client_secret.json")
+
                 flow = client.flow_from_clientsecrets('client_secret.json', SCOPES)
-                creds = tools.run_flow(flow, store)
+                args = Namespace(logging_level='ERROR',
+                                 auth_host_name='localhost',
+                                 noauth_local_webserver=False,
+                                 auth_host_port=[8000, 8090])
+                creds = tools.run_flow(flow, store, args)
             return build('photoslibrary', 'v1', http=creds.authorize(Http()))
 
         self._service = get_photos_service()

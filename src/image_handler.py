@@ -7,7 +7,6 @@ from collections import deque
 
 from src import verbose
 from src.image import Image
-from src.remote import GooglePhotosLibrary
 
 # Suppress variable naming warning as those are chosen to
 # remain consistent with the Google Photos API.
@@ -286,10 +285,13 @@ class ImageHandler(BaseImageHandler):
 
 class RemoteImageHandler(BaseImageHandler):
 
-    def __init__(self, path, backup_maxlen=None):
+    def __init__(self, path, library, backup_maxlen=None):
         BaseImageHandler.__init__(self, path, backup_maxlen)
 
-        self._library = GooglePhotosLibrary()
+        self._library = library
+
+        if not os.path.exists(path):
+            os.makedirs(path)
 
         for mediaItem in self._library.get_multiple(10):
             filename = mediaItem['filename']

@@ -15,6 +15,7 @@ import cv2
 import src
 from src import verbose
 
+from src.remote import GooglePhotosLibrary
 from src.display import DisplayHandler
 from src.display import MAXIMUM_DISPLAY_SIZE
 from src.display import BORDER
@@ -87,12 +88,23 @@ def main():
     if args.verbose:
         src._verbose = True
 
+    # Initialize GooglePhotosLibrary object for remote connection
+    if args.remote:
+        try:
+            library = GooglePhotosLibrary()
+        except FileNotFoundError as err:
+            sys.stderr.write(f"{err}\n\n"
+                "To run in the remote mode, you must have client_secret.json file with\n"
+                "Google API credentials for your application. Note that this file will\n"
+                "not be required after the authentication is complete.\n")
+            sys.exit(11)
+
     try:
         if args.remote:
             if not args.with_threading:
                 sys.stderr.write(f"Remote mode cannot run without threading\n")
                 sys.exit(10)
-            handler = RemoteImageHandler(args.images, args.backup_maxlen)
+            handler = RemoteImageHandler(args.images, library, args.backup_maxlen)
         else:
             handler = ImageHandler(args.images, args.with_threading, args.backup_maxlen)
     except IOError as err:
