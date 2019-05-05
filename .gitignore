@@ -1,4 +1,5 @@
 __venv__
+__pycache__
 Photos
 
 # Chromedriver and all of its variants
