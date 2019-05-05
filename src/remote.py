@@ -12,6 +12,9 @@ from oauth2client import client, file, tools
 
 class GooglePhotosLibrary:
 
+    # This is the maximum size that Google Photos API allows.
+    PAGE_SIZE = 100
+
     def __init__(self):
 
         def get_photos_service():
@@ -39,14 +42,14 @@ class GooglePhotosLibrary:
             return build('photoslibrary', 'v1', http=creds.authorize(Http()))
 
         self._service = get_photos_service()
-        self._results = self._service.mediaItems().list(pageSize=10).execute()
+        self._results = self._service.mediaItems().list(pageSize=self.PAGE_SIZE).execute()
 
     def get_next(self):
         while True:
             if not self._results['mediaItems']:
                 # nextPageToken can be missing but I have so many photos.....
                 self._results = self._service.mediaItems().list(
-                    pageSize=10,
+                    pageSize=self.PAGE_SIZE,
                     pageToken=self._results['nextPageToken']).execute()
 
             mediaItem = self._results['mediaItems'][0]
