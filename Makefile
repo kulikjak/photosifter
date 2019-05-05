@@ -7,8 +7,9 @@ PYTHON_FILES = $(wildcard src/*.py)
 PYTHON_FILES += frontend_deleter.py image_focus.py
 
 # Disable:
-#   C0111 missing docstring (dom't need a docstring for two line methods...)
-PYLINT_ARGS = --disable=C0111
+#   C0111: missing docstring (dom't need a docstring for two line methods...)
+#   R0902: Too many instance attributes (don't care at all)
+PYLINT_ARGS = --disable=C0111,R0902
 
 # Make lines longer (between 80 and 100 is ok)
 PYCODESTYLE_ARGS = --max-line-length=99

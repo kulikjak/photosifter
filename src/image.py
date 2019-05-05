@@ -1,14 +1,22 @@
 import os
+from urllib.request import urlopen
+
 import cv2
+
+# Suppress mediaItem naming warning as it is named to
+# remain consistent with the Google Photos API.
+# pylint: disable=C0103
 
 
 class Image:
 
-    def __init__(self, filename, path):
+    def __init__(self, filename, path, mediaItem=None):
 
+        self._mediaItem = mediaItem
         self._filename = filename
         self._path = path
 
+        self._downloaded = os.path.isfile(os.path.join(path, filename))
         self._deleted = False
         self._focus = None
         self._base_image = None
@@ -20,6 +28,15 @@ class Image:
         which one of them will be processed first, so no real comparison occurs.
         """
         return True
+
+    def download_image(self):
+        if self._downloaded:
+            return
+
+        with urlopen(f"{self._mediaItem['baseUrl']}=d") as src:
+            with open(os.path.join(self._path, self._mediaItem['filename']), 'wb') as dst:
+                dst.write(src.read())
+        self._downloaded = True
 
     def load_image(self, focus_only: bool = False):
         """Load image into the application memory.
@@ -36,6 +53,10 @@ class Image:
             """Get focus value of given image."""
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             return cv2.Laplacian(gray, cv2.CV_64F).var()
+
+        # Download image if it is not yet downloaded
+        if not self._downloaded:
+            self.download_image()
 
         # Do nothing if image is deleted
         if self._deleted:
@@ -100,7 +121,7 @@ class Image:
         Does nothing for already deleted images.
         """
 
-        if self._deleted:
+        if self._deleted or not self._downloaded:
             return
 
         self._deleted = True
@@ -121,7 +142,7 @@ class Image:
         Does nothing for non deleted images.
         """
 
-        if not self._deleted:
+        if not self._deleted or not self._downloaded:
             return
 
         self._deleted = False
@@ -142,3 +163,7 @@ class Image:
     @property
     def filename(self):
         return self._filename
+
+    @property
+    def mediaItem(self):
+        return self._mediaItem

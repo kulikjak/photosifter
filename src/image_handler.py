@@ -7,11 +7,17 @@ from collections import deque
 
 from src import verbose
 from src.image import Image
+from src.remote import GooglePhotosLibrary
+
+# Suppress variable naming warning as those are chosen to
+# remain consistent with the Google Photos API.
+# pylint: disable=C0103
 
 
 class JOB(enum.Enum):
     """Enum containing job types for background thread worker."""
 
+    DOWNLOAD_IMAGE = 0
     LOAD_IMAGE = 1
     CALC_FOCUS = 2
     EXIT = 3
@@ -20,52 +26,100 @@ class JOB(enum.Enum):
 class Worker(threading.Thread):
     """Background worker class."""
 
-    # Automatically load image focus when first loading the actual image
-    AUTOMATIC_FOCUS = True
-
     def __init__(self, job_queue):
         """Initialize background image preloading thread.
 
-        arguments:
-            job_queue -- priority queue with worker jobs
+        Args:
+            job_queue: priority queue with worker jobs
         """
         threading.Thread.__init__(self)
 
         self._queue = job_queue
+        self._download_capable = False
+
+        self._filenames = None
+        self._images = None
+        self._path = None
+        self._library = None
+
+    def enable_downloading(self, filenames, images, path, library):
+        """Enable download capability of the Worker
+
+        To download images and create new Image objects, the worker needs to
+        have access to all of these additional arguments. These are not passed
+        via the constructor, because they are unnecessary for the local stuff
+        and would merely make a list of arguments needlessly big.
+
+        Args:
+            filenames: sorted list of image filenames.
+            images: main map if Image objects.
+            path: download path of all new images.
+            library: GooglePhotosLibrary object.
+        """
+        self._filenames = filenames
+        self._images = images
+        self._path = path
+        self._library = library
+
+        self._download_capable = True
 
     def run(self):
+        """Worker thread run method"""
 
         while True:
             _, item = self._queue.get()
             job, obj = item
 
+            if obj is not None:
+                verbose(f"Background job: {job.name} : {obj.filename}")
+            else:
+                verbose(f"Background job: {job.name}")
+
             # stop thread and return back to main one
             if job is JOB.EXIT:
                 break
 
-            verbose(f"Background job: {job.name} : {obj.filename}")
+            if job is JOB.DOWNLOAD_IMAGE:
+                if not self._download_capable:
+                    print("Worker: cannot download if not download capable.")
+                    print("Did you forget to call enable_downloading func?")
+                    continue
+
+                mediaItem = self._library.get_next()
+                filename = mediaItem['filename']
+
+                verbose(f"Background job: {job.name} : {filename}")
+
+                obj = Image(filename, self._path, mediaItem)
+                obj.load_image()
+
+                self._images[filename] = obj
+                self._filenames.append(filename)
 
             # preload image itself
-            if job is JOB.LOAD_IMAGE:
+            elif job is JOB.LOAD_IMAGE:
                 obj.load_image()
 
             # calculate focus of an image
             elif job is JOB.CALC_FOCUS:
                 obj.load_image(focus_only=True)
 
+            else:
+                if isinstance(job, JOB):
+                    print(f"Worker: Unsupported job: {job.name}")
+                else:
+                    print(f"Worker: Unknown job: {job}")
 
-class ImageHandler:
+
+class BaseImageHandler:
     """Class for image carousel handling.
 
     Background worker is also handled from here.
     """
 
-    PRELOAD_RANGE = 8
+    PRELOAD_RANGE = 10
 
-    # All allowed image extensions
-    ALLOWED_IMAGE_EXTENSIONS = ('.jpg', '.png', '.jpeg')
-
-    def __init__(self, path, with_threading=True, backup_maxlen=None):
+    def __init__(self, path, backup_maxlen=None):
         """Initialize image handler class.
 
         arguments:
@@ -85,15 +139,8 @@ class ImageHandler:
         self._backup = deque(maxlen=backup_maxlen)
         self._path = path
 
-        files = os.listdir(path)  # Throws IOError
-        self._filenames = [file for file in files if file.endswith(self.ALLOWED_IMAGE_EXTENSIONS)]
-        # NOTE: This way of sorting might not be the most efficient, but it works well
-        self._filenames.sort(key=lambda item: item.replace('.', chr(0x01)))
-
-        self._images = {filename: Image(filename, path) for filename in self._filenames}
-
-        if with_threading:
-            self._start_worker()
+        self._filenames = []
+        self._images = {}
 
     def __del__(self):
         if self._worker:
@@ -159,7 +206,7 @@ class ImageHandler:
         del self._filenames[idx]
         obj.delete()
 
-        if self._idx > 0 and total/2 > offset:
+        if self._idx > 0 and total / 2 > offset:
             self._idx -= 1
             self._load(self._idx - self.PRELOAD_RANGE)
         else:
@@ -195,16 +242,7 @@ class ImageHandler:
 
     def _start_worker(self):
         """Start background worker."""
-        size = len(self._images)
         self._job_queue = queue.PriorityQueue()
-
-        # fill queue with focus jobs and non loaded images
-        for i, filename in enumerate(self._filenames):
-            self._job_queue.put((size + i, (JOB.CALC_FOCUS, self.__getitem__(filename))))
-
-        for i in range(2, min(self.PRELOAD_RANGE + 1, len(self._filenames))):
-            self._job_queue.put((i, (JOB.LOAD_IMAGE, self.__getitem__(i))))
-
         self._worker = Worker(self._job_queue)
         self._worker.start()
 
@@ -212,3 +250,71 @@ class ImageHandler:
         """Stop background worker."""
         self._job_queue.put((0, (JOB.EXIT, None)))
         self._worker.join()
+
+
+class ImageHandler(BaseImageHandler):
+
+    # All allowed image extensions
+    ALLOWED_IMAGE_EXTENSIONS = ('.jpg', '.png', '.jpeg')
+
+    def __init__(self, path, with_threading=True, backup_maxlen=None):
+        BaseImageHandler.__init__(self, path, backup_maxlen)
+
+        files = os.listdir(path)  # Throws IOError
+        self._filenames = [
+            file for file in files if file.endswith(self.ALLOWED_IMAGE_EXTENSIONS)]
+        # NOTE: This way of sorting might not be the most efficient, but it works well
+        self._filenames.sort(key=lambda item: item.replace('.', chr(0x01)))
+
+        self._images = {filename: Image(filename, path) for filename in self._filenames}
+
+        if with_threading:
+            self._start_worker()
+
+    def _start_worker(self):
+        """Start background worker."""
+        BaseImageHandler._start_worker(self)
+
+        # fill queue with focus jobs and non loaded images
+        size = len(self._images)
+        for i, filename in enumerate(self._filenames):
+            self._job_queue.put((size + i, (JOB.CALC_FOCUS, self.__getitem__(filename))))
+
+        for i in range(2, min(self.PRELOAD_RANGE + 1, len(self._filenames))):
+            self._job_queue.put((i, (JOB.LOAD_IMAGE, self.__getitem__(i))))
+
+
+class RemoteImageHandler(BaseImageHandler):
+
+    def __init__(self, path, backup_maxlen=None):
+        BaseImageHandler.__init__(self, path, backup_maxlen)
+
+        self._library = GooglePhotosLibrary()
+
+        for mediaItem in self._library.get_multiple(10):
+            filename = mediaItem['filename']
+            self._filenames.append(filename)
+
+            image = Image(filename, path, mediaItem)
+            image.download_image()
+
+            self._images[filename] = image
+
+        self._start_worker()
+
+    def _start_worker(self):
+        """Start background worker."""
+        BaseImageHandler._start_worker(self)
+        self._worker.enable_downloading(self._filenames, self._images,
+                                        self._path, self._library)
+
+        for i in range(2, min(self.PRELOAD_RANGE + 1, len(self._filenames))):
+            self._job_queue.put((i, (JOB.LOAD_IMAGE, self.__getitem__(i))))
+
+    def _load(self, idx):
+        BaseImageHandler._load(self, idx)
+
+        # Add remote download job if index is out of range on the right side
+        if idx > len(self._filenames) - 2:
+            verbose(f'Main: download image {idx}')
+            self._job_queue.put((10, (JOB.DOWNLOAD_IMAGE, None)))

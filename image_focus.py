@@ -19,7 +19,7 @@ from src.display import DisplayHandler
 from src.display import MAXIMUM_DISPLAY_SIZE
 from src.display import BORDER
 
-from src.image_handler import ImageHandler
+from src.image_handler import ImageHandler, RemoteImageHandler
 
 
 class KEYBOARD(enum.IntEnum):
@@ -67,8 +67,8 @@ def get_parser():
                         help="path to the directory with images")
     parser.add_argument("-t", "--treshold", default=0,
                         help="focus treshold for auto choosing (default 0)")
-    parser.add_argument("-m", "--multi-window", action='store_true',
-                        help="display in multiple windows")
+    parser.add_argument("-r", "--remote", action='store_true',
+                        help="get images from the Google Photos library")
     parser.add_argument("-l", "--backup-maxlen", default=None, type=int,
                         help="limit size of the backup buffer")
     parser.add_argument("-w", "--without-threading", action='store_false',
@@ -88,7 +88,13 @@ def main():
         src._verbose = True
 
     try:
-        handler = ImageHandler(args.images, args.with_threading, args.backup_maxlen)
+        if args.remote:
+            if not args.with_threading:
+                sys.stderr.write(f"Remote mode cannot run without threading\n")
+                sys.exit(10)
+            handler = RemoteImageHandler(args.images, args.backup_maxlen)
+        else:
+            handler = ImageHandler(args.images, args.with_threading, args.backup_maxlen)
     except IOError as err:
         sys.stderr.write(f"Cannot open directory '{args.images}'\n{err}\n")
         sys.exit(1)
