@@ -29,10 +29,8 @@ class DisplayHandler:
     def __del__(self):
         cv2.destroyWindow(self.WINDOW_NAME)
 
-    def _embed_text(self, image, focus, filename):
-        if not self._enable_text_embeding:
-            return
-
+    @staticmethod
+    def _embed_text(image, focus, filename):
         cv2.putText(image, f"Focus: {focus:.2f}", (50, 140),
                     cv2.FONT_HERSHEY_SIMPLEX, 5, (0, 0, 255), thickness=20)
         cv2.putText(image, filename, (50, 280),
@@ -69,7 +67,8 @@ class DisplayHandler:
         for obj in image_objects:
 
             image = obj.get(min_height).copy()
-            self._embed_text(image, obj.focus, obj.filename)
+            if self._enable_text_embeding:
+                self._embed_text(image, obj.focus, obj.filename)
 
             if complete is None:
                 complete = image
