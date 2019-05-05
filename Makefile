@@ -37,3 +37,7 @@ FORCE:
 
 %.py: %.py.pycodestyle %.py.pylint
 	@echo "Done: $@"
+
+
+lines:
+	@wc -l $(PYTHON_FILES)
