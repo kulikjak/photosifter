@@ -167,3 +167,9 @@ class Image:
     @property
     def mediaItem(self):
         return self._mediaItem
+
+    @property
+    def productUrl(self):
+        if self._mediaItem and 'productUrl' in self._mediaItem:
+            return self._mediaItem['productUrl']
+        return None

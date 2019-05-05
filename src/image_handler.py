@@ -1,7 +1,9 @@
 import enum
+import json
 import os
 import queue
 import threading
+import time
 
 from collections import deque
 
@@ -303,6 +305,24 @@ class RemoteImageHandler(BaseImageHandler):
             self._images[filename] = image
 
         self._start_worker()
+
+    def __del__(self):
+        BaseImageHandler.__del__(self)
+
+        # Sadly, Google Photos API doesn't support image deletion so we cannot
+        # use the API to delete those photos which were removed in this app.
+        # Moving images into albums is also not possible, and thus we cannot
+        # even create an album with images to delete.
+        # The current workaround is to use Selenium based frontend deleter.
+        # This part creates a file which can be given to it as an argument.
+
+        deleted = [obj.productUrl for obj in self._images.values() if obj.deleted]
+        if deleted:
+            filename = f"{time.strftime('%Y%m%d_%H%M%S')}_deleted.json"
+            print(f"Generated file for use with frontend_deleter: {filename}.")
+
+            with open(filename, 'w') as outfile:
+                json.dump(deleted, outfile)
 
     def _start_worker(self):
         """Start background worker."""
