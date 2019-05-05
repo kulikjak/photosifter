@@ -91,7 +91,7 @@ def init_driver():
         if driver.current_url != SERVER_ADDRESS:
             print("Unable to login into the Google Photos")
             # We can do nothing more here
-            driver.exit()
+            driver.quit()
             return None
 
     # Save cookies for a future use (must be logged in here)
@@ -113,7 +113,11 @@ def delete_images(driver, url_list):
             print(f"Error during loading of '{url}'\n{err}")
 
         # Confirm that something else is not being deleted
-        if driver.current_url != url:
+        if "photos.google.com/lr/photo/" in url:
+            # NOTE: This cannot be done for productUrl addresses as they
+            # are redirected if the image exists.
+            pass
+        elif driver.current_url != url:
             # This should never happen
             print("Cannot get to given url.")
             continue
@@ -155,8 +159,15 @@ def test_deleted(driver, url_list):
             print(f"Error during loading of '{url}'\n{err}")
 
         # Deleted photos will have 404 error in the page title
-        if "Error 404" not in driver.title:
-            problematic.append(url)
+        if "Error 404" in driver.title:
+            continue
+
+        # If given address is the productUrl from Google API,
+        # browser will not redirect on image not found error.
+        if "photos.google.com/lr/photo/" in url and driver.current_url == url:
+            continue
+
+        problematic.append(url)
     return problematic
 
 
