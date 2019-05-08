@@ -10,10 +10,6 @@ from collections import deque
 from src import verbose
 from src.image import Image
 
-# Suppress variable naming warning as those are chosen to
-# remain consistent with the Google Photos API.
-# pylint: disable=C0103
-
 
 class JOB(enum.Enum):
     """Enum containing job types for background thread worker."""

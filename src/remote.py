@@ -1,13 +1,9 @@
 import os
 from argparse import Namespace
 
-from apiclient.discovery import build
+from apiclient.discovery import build  # pylint: disable=E0401
 from httplib2 import Http
 from oauth2client import client, file, tools
-
-# Suppress variable naming warning as those are chosen to
-# remain consistent with the Google Photos API.
-# pylint: disable=C0103
 
 
 class GooglePhotosLibrary:

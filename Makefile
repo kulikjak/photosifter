@@ -4,15 +4,21 @@
 # base and fix those things which do make sense to fix.
 
 PYTHON_FILES = $(wildcard src/*.py)
-PYTHON_FILES += frontend_deleter.py image_focus.py detector.py
+PYTHON_FILES += frontend_deleter.py image_focus.py resolver.py
 
 # Disable:
 #   C0111: missing docstring (dom't need a docstring for two line methods...)
-#   R0902: Too many instance attributes (don't care at all)
-PYLINT_ARGS = --disable=C0111,R0902
+#   C0103: naming style problem (to remain consistent with the Google Photos API)
+#   C0330: wrong continued indentation (sometimes looks better)
+#   R0902: too many instance attributes (don't care at all)
+PYLINT_ARGS = --disable=C0111,C0103,C0330,R0902
+
+# Disable:
+#   E128: continuation line under-indented (see above)
+PYCODESTYLE_ARGS = --ignore=E128
 
 # Make lines longer (between 80 and 100 is ok)
-PYCODESTYLE_ARGS = --max-line-length=99
+PYCODESTYLE_ARGS += --max-line-length=99
 
 
 all: pylint pycodestyle

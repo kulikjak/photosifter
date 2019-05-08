@@ -22,6 +22,9 @@ from src.display import BORDER
 
 from src.image_handler import ImageHandler, RemoteImageHandler
 
+# Don't really care about to many variables/branches/statemens....
+# pylint: disable=R0914,W0212,R0912,R0915
+
 
 class KEYBOARD(enum.IntEnum):
     """Enum containing all used keyboard keys."""

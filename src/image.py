@@ -3,10 +3,6 @@ from urllib.request import urlopen
 
 import cv2
 
-# Suppress mediaItem naming warning as it is named to
-# remain consistent with the Google Photos API.
-# pylint: disable=C0103
-
 
 class Image:
 
