@@ -1,6 +1,7 @@
 #!__venv__/bin/python3.7
 
 import argparse
+import json
 import os
 import sys
 
@@ -47,7 +48,7 @@ def main():
             resolved[filename] = item['productUrl']
             files.remove(filename)
             if args.verbose:
-                print(f"[{len(resolved)}/{total}]: found {filename}")
+                print(f"[{len(resolved)}/{total}] found {filename}")
 
         if not files:
             break
@@ -56,7 +57,7 @@ def main():
     if args.dict:
         print(resolved)
     else:
-        print(list(resolved.values()))
+        print(json.dumps(list(resolved.values())))
 
     if files:
         print("Unresolved files:")
