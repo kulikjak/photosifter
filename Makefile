@@ -4,7 +4,7 @@
 # base and fix those things which do make sense to fix.
 
 PYTHON_FILES = $(wildcard src/*.py)
-PYTHON_FILES += frontend_deleter.py image_focus.py
+PYTHON_FILES += frontend_deleter.py image_focus.py detector.py
 
 # Disable:
 #   C0111: missing docstring (dom't need a docstring for two line methods...)
