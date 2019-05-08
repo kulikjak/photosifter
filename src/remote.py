@@ -41,6 +41,7 @@ class GooglePhotosLibrary:
                 creds = tools.run_flow(flow, store, args)
             return build('photoslibrary', 'v1', http=creds.authorize(Http()))
 
+        self._previous = None
         self._service = get_photos_service()
         self._results = self._service.mediaItems().list(pageSize=self.PAGE_SIZE).execute()
 
@@ -55,8 +56,13 @@ class GooglePhotosLibrary:
             mediaItem = self._results['mediaItems'][0]
             del self._results['mediaItems'][:1]
 
+            # Fix problem where GoogleAPI returns the same image twice...
+            if mediaItem['id'] == self._previous:
+                continue
+
             # This is an image file
             if 'photo' in mediaItem['mediaMetadata']:
+                self._previous = mediaItem['id']
                 return mediaItem
 
     def get_multiple(self, amount):
