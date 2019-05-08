@@ -144,6 +144,9 @@ def delete_images(driver, url_list):
             print(f"Could not locate confirm box after {attempts} attempts.")
             continue
 
+        # Give the server a little bit of time before loading the next image.
+        time.sleep(0.25)
+
 
 def test_deleted(driver, url_list):
     """Return images that are still not deleted."""
