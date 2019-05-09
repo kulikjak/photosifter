@@ -49,7 +49,7 @@ class Worker(threading.Thread):
 
         Args:
             filenames: sorted list of image filenames.
-            images: main map if Image objects.
+            images: main map of Image objects.
             path: download path of all new images.
             library: GooglePhotosLibrary object.
         """
@@ -109,35 +109,35 @@ class Worker(threading.Thread):
 
 
 class BaseImageHandler:
-    """Class for image carousel handling.
-
-    Background worker is also handled from here.
-    """
+    """Base class for image carousel handling."""
 
     PRELOAD_RANGE = 10
 
-    def __init__(self, path, backup_maxlen=None):
+    def __init__(self, path, filenames, images, with_threading=True, backup_maxlen=None):
         """Initialize image handler class.
 
-        arguments:
-            path           -- path to the folder with images
-            with_threading -- whether to use additional image loading thread
-            backup_maxlen  -- maximum size of the backup deque
+        Args:
+            path: path to the directory with images.
+            filenames: sorted list of image filenames.
+            images: main map of Image objects.
+            with_threading: whether to enable background image preloading.
+            backup_maxlen: maximum size of the backup queue.
 
-        Class loads and further handles all images from given directory (it is
-        non recursive meaning that subdirectories are not checked) By default
-        images in handler are sorted lexicographically and only contains files
-        with allowed extensions.
+        This class should be subclassed and filenames and images arguments
+        initialized in subclass constructors.
         """
 
         self._idx = 0
         self._worker = None
         self._job_queue = None
         self._backup = deque(maxlen=backup_maxlen)
-        self._path = path
 
-        self._filenames = []
-        self._images = {}
+        self._path = path
+        self._filenames = filenames
+        self._images = images
+
+        if with_threading:
+            self._start_worker()
 
     def __del__(self):
         if self._worker:
@@ -147,6 +147,11 @@ class BaseImageHandler:
         return len(self._filenames)
 
     def __getitem__(self, key):
+        """Get Image object based on the given key.
+
+        Key can be both integer and string. Integer returns nth Image
+        from the list, string retrieves Image with given filename.
+        """
 
         if isinstance(key, int):
             key = self._filenames[key]
@@ -156,6 +161,7 @@ class BaseImageHandler:
         return self._images[key]
 
     def get_relative(self, idx):
+        """Get Image object with given offset relative to current view."""
         return self.__getitem__(self._idx + idx)
 
     def _load(self, idx):
@@ -192,6 +198,12 @@ class BaseImageHandler:
         return True
 
     def delete_image(self, offset, total):
+        """Delete image from the carousel.
+
+        Argument 'total' is given to specify the number of currently displayed
+        images and is used to determine how should the view move after one
+        image is removed.
+        """
         idx = self._idx + offset
         try:
             obj = self.__getitem__(idx)
@@ -227,10 +239,11 @@ class BaseImageHandler:
         self._images[filename].restore()
         return filename
 
-    def get_list(self, limit):
+    def get_list(self, amount):
+        """Get 'amount' images from current view."""
         objects = []
         try:
-            for i in range(limit):
+            for i in range(amount):
                 objects.append(self.__getitem__(self._idx + i))
         except IndexError:
             pass
@@ -255,18 +268,28 @@ class ImageHandler(BaseImageHandler):
     ALLOWED_IMAGE_EXTENSIONS = ('.jpg', '.png', '.jpeg')
 
     def __init__(self, path, with_threading=True, backup_maxlen=None):
-        BaseImageHandler.__init__(self, path, backup_maxlen)
+        """Initialize image handler class.
+
+        Args:
+            path: path to the directory with images.
+            with_threading: whether to enable background image preloading.
+            backup_maxlen: maximum size of the backup queue.
+
+        This handler is used for locally saved images.
+
+        Class loads all images from the given directory (it is nonrecursive
+        meaning that subdirectories are not checked) Images are sorted
+        alphabetically and only contains files with allowed extensions.
+        """
 
         files = os.listdir(path)  # Throws IOError
-        self._filenames = [
-            file for file in files if file.endswith(self.ALLOWED_IMAGE_EXTENSIONS)]
+        filenames = [file for file in files if file.endswith(self.ALLOWED_IMAGE_EXTENSIONS)]
+        images = {filename: Image(filename, path) for filename in filenames}
+
         # NOTE: This way of sorting might not be the most efficient, but it works well
-        self._filenames.sort(key=lambda item: item.replace('.', chr(0x01)))
+        filenames.sort(key=lambda item: item.replace('.', chr(0x01)))
 
-        self._images = {filename: Image(filename, path) for filename in self._filenames}
-
-        if with_threading:
-            self._start_worker()
+        BaseImageHandler.__init__(self, path, filenames, images, with_threading, backup_maxlen)
 
     def _start_worker(self):
         """Start background worker."""
@@ -284,23 +307,37 @@ class ImageHandler(BaseImageHandler):
 class RemoteImageHandler(BaseImageHandler):
 
     def __init__(self, path, library, backup_maxlen=None):
-        BaseImageHandler.__init__(self, path, backup_maxlen)
+        """Initialize image handler class.
+
+        Args:
+            path: path to the directory with images.
+            library: GooglePhotosLibrary object.
+            backup_maxlen: maximum size of the backup queue.
+
+        This handler is used for remotely saved images.
+
+        Class is periodically downloading images from the Google Photos service
+        from newest to oldest. Since the image download is very time-consuming
+        operation, it must be done in the background, and thus this handler
+        cannot operate without the thread support.
+        """
 
         self._library = library
+        filenames = []
+        images = {}
 
         if not os.path.exists(path):
             os.makedirs(path)
 
         for mediaItem in self._library.get_multiple(10):
             filename = mediaItem['filename']
-            self._filenames.append(filename)
+            filenames.append(filename)
 
             image = Image(filename, path, mediaItem)
             image.download_image()
+            images[filename] = image
 
-            self._images[filename] = image
-
-        self._start_worker()
+        BaseImageHandler.__init__(self, path, filenames, images, True, backup_maxlen)
 
     def __del__(self):
         BaseImageHandler.__del__(self)

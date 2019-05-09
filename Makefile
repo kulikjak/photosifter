@@ -11,7 +11,8 @@ PYTHON_FILES += frontend_deleter.py image_focus.py resolver.py
 #   C0103: naming style problem (to remain consistent with the Google Photos API)
 #   C0330: wrong continued indentation (sometimes looks better)
 #   R0902: too many instance attributes (don't care at all)
-PYLINT_ARGS = --disable=C0111,C0103,C0330,R0902
+#   R0913: too many arguments (don't care as well)
+PYLINT_ARGS = --disable=C0111,C0103,C0330,R0902,R0913
 
 # Disable:
 #   E128: continuation line under-indented (see above)
@@ -33,12 +34,12 @@ FORCE:
 
 %.py.pylint: FORCE
 	@echo "=== pylint $(@:.pylint=) ==="
-	@-pylint --extension-pkg-whitelist=cv2 $(PYLINT_ARGS) $(@:.pylint=)
+	@pylint --extension-pkg-whitelist=cv2 $(PYLINT_ARGS) $(@:.pylint=)
 	@echo
 
 %.py.pycodestyle: FORCE
 	@echo "=== pycodestyle $(@:.pycodestyle=) ==="
-	@-pycodestyle $(PYCODESTYLE_ARGS) $(@:.pycodestyle=)
+	@pycodestyle $(PYCODESTYLE_ARGS) $(@:.pycodestyle=)
 	@echo
 
 %.py: %.py.pycodestyle %.py.pylint
