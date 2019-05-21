@@ -1,6 +1,3 @@
-#!__venv__/bin/python3.7
-
-import argparse
 import json
 import os
 import sys
@@ -8,19 +5,7 @@ import sys
 from src.remote import GooglePhotosLibrary
 
 
-def main():
-
-    parser = argparse.ArgumentParser(
-        description="Search product URLs based on local filenames.")
-    parser.add_argument("-l", "--limit", type=int, default=1000,
-        help="Limit number of photos remotely searched.")
-    parser.add_argument("-d", "--dict", action="store_true",
-        help="Print dictionary rather than list of urls.")
-    parser.add_argument("-v", "--verbose", action='store_true',
-        help="show more verbose console output")
-    parser.add_argument("path",
-        help="Path to the to-be-resolved folder.")
-    args = parser.parse_args()
+def resolve(args):
 
     try:
         library = GooglePhotosLibrary()
@@ -65,4 +50,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.stderr.write("This program cannot be invoked directly.\n")
+    sys.stderr.write("Run it instead with 'photosifter remote'.\n")
+    sys.exit(1)

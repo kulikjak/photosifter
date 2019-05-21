@@ -4,7 +4,7 @@
 # base and fix those things which do make sense to fix.
 
 PYTHON_FILES = $(wildcard src/*.py)
-PYTHON_FILES += frontend_deleter.py image_focus.py resolver.py
+PYTHON_FILES += frontend_deleter.py photosifter.py
 
 # Disable:
 #   C0111: missing docstring (dom't need a docstring for two line methods...)
@@ -34,12 +34,12 @@ FORCE:
 
 %.py.pylint: FORCE
 	@echo "=== pylint $(@:.pylint=) ==="
-	@pylint --extension-pkg-whitelist=cv2 $(PYLINT_ARGS) $(@:.pylint=)
+	@-pylint --extension-pkg-whitelist=cv2 $(PYLINT_ARGS) $(@:.pylint=)
 	@echo
 
 %.py.pycodestyle: FORCE
 	@echo "=== pycodestyle $(@:.pycodestyle=) ==="
-	@pycodestyle $(PYCODESTYLE_ARGS) $(@:.pycodestyle=)
+	@-pycodestyle $(PYCODESTYLE_ARGS) $(@:.pycodestyle=)
 	@echo
 
 %.py: %.py.pycodestyle %.py.pylint

@@ -1,18 +1,8 @@
-#!__venv__/bin/python3.7
-#
-# image_focus - simple python utility that helps you decide which which
-# of your many photographs has better focus.
-#
-
-import argparse
 import enum
 import os
 import sys
-import textwrap
-
 import cv2
 
-import src
 from src import verbose
 
 from src.remote import GooglePhotosLibrary
@@ -20,7 +10,8 @@ from src.display import DisplayHandler
 from src.display import MAXIMUM_DISPLAY_SIZE
 from src.display import BORDER
 
-from src.image_handler import ImageHandler, RemoteImageHandler
+from src.image_handler import ImageHandler
+from src.image_handler import RemoteImageHandler
 
 # Don't really care about to many variables/branches/statemens....
 # pylint: disable=R0914,W0212,R0912,R0915
@@ -47,52 +38,10 @@ class KEYBOARD(enum.IntEnum):
     Z = 122
 
 
-def get_parser():
-    """Get argument parser object."""
-
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=textwrap.dedent("""
-        keyboard shortcuts:
-           <Left> ,             move left
-           <Right> .            move right
-           <Esc> X              close the application
-           J K L                switch between view modes
-           Y Z                  revert last deletion
-           A D                  delete left/right image (only in DISPLAY_BOTH mode)
-           S                    delete image with worse focus value
-                                   (deletes current in DISPLAY_lEFT or DISPLAY_RIGHT modes)
-           F                    toggle fullscreen
-        """))
-
-    parser.add_argument("-v", "--verbose", action='store_true',
-                        help="show more verbose console output")
-    parser.add_argument("images",
-                        help="path to the directory with images")
-    parser.add_argument("-t", "--treshold", default=0,
-                        help="focus treshold for auto choosing (default 0)")
-    parser.add_argument("-r", "--remote", action='store_true',
-                        help="get images from the Google Photos library")
-    parser.add_argument("-l", "--backup-maxlen", default=None, type=int,
-                        help="limit size of the backup buffer")
-    parser.add_argument("-w", "--without-threading", action='store_false',
-                        help="disable background preloading",
-                        dest='with_threading')
-
-    return parser
-
-
-def main():
-
-    # get argument parser and parse given arguments
-    parser = get_parser()
-    args = parser.parse_args()
-
-    if args.verbose:
-        src._verbose = True
+def sift(args):
 
     # Initialize GooglePhotosLibrary object for remote connection
-    if args.remote:
+    if args.action == "remote":
         try:
             library = GooglePhotosLibrary()
         except FileNotFoundError as err:
@@ -103,10 +52,7 @@ def main():
             sys.exit(11)
 
     try:
-        if args.remote:
-            if not args.with_threading:
-                sys.stderr.write(f"Remote mode cannot run without threading\n")
-                sys.exit(10)
+        if args.action == "remote":
             handler = RemoteImageHandler(args.images, library, args.backup_maxlen)
         else:
             handler = ImageHandler(args.images, args.with_threading, args.backup_maxlen)
@@ -243,4 +189,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.stderr.write("This program cannot be invoked directly.\n")
+    sys.stderr.write("Run it instead with 'photosifter remote'.\n")
+    sys.exit(1)
