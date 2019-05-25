@@ -104,13 +104,14 @@ def init_driver():
 def delete_images(driver, url_list):
     """Delete Google Photo images from given urls"""
 
-    for url in url_list:
+    total = len(url_list)
+    for i, url in enumerate(url_list, 1):
 
         # Load page with current photograph
         try:
             driver.get(url)
         except WebDriverException as err:
-            print(f"Error during loading of '{url}'\n{err}")
+            print(f"[{i}/{total}] Error during loading of '{url}'\n{err}")
 
         # Confirm that something else is not being deleted
         if "photos.google.com/lr/photo/" in url:
@@ -119,7 +120,7 @@ def delete_images(driver, url_list):
             pass
         elif driver.current_url != url:
             # This should never happen
-            print("Cannot get to given url.")
+            print(f"[{i}/{total}] Cannot get to given url.")
             continue
 
         # Click the delete button
@@ -128,9 +129,9 @@ def delete_images(driver, url_list):
         if not success:
             # check if this photo was already deleted
             if "Error 404" in driver.title:
-                print("This photo was probably already deleted.")
+                print(f"[{i}/{total}] This photo was probably already deleted.")
             else:
-                print("Cannot locate delete button.")
+                print(f"[{i}/{total}] Cannot locate delete button.")
             continue
 
         attempts = 12
@@ -141,9 +142,10 @@ def delete_images(driver, url_list):
                 break
             time.sleep(0.25)
         else:
-            print(f"Could not locate confirm box after {attempts} attempts.")
+            print(f"[{i}/{total}] Could not locate confirm box after {attempts} attempts.")
             continue
 
+        print(f"[{i}/{total}] ok")
         # Give the server a little bit of time before loading the next image.
         time.sleep(0.25)
 
@@ -205,7 +207,7 @@ def main():
     if driver is None:
         sys.exit(1)
 
-    print("\nStarting main delete loop")
+    print("\nStarting the main delete loop")
     try:
         delete_images(driver, url_list)
         problematic = test_deleted(driver, url_list)
