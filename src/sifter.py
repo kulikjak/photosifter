@@ -17,7 +17,7 @@ from src.image_handler import RemoteImageHandler
 # pylint: disable=R0914,W0212,R0912,R0915
 
 
-class KEYBOARD(enum.IntEnum):
+class KEY(enum.IntEnum):
     """Enum containing all used keyboard keys."""
 
     ESC = 27
@@ -93,27 +93,27 @@ def sift(args):
         while key == -1:
             key = cv2.waitKey(1000)
 
-        if key in [KEYBOARD.LEFT, KEYBOARD.COMMA]:
+        if key in [KEY.LEFT, KEY.COMMA]:
             rerender = handler.roll_right()
 
-        elif key in [KEYBOARD.RIGHT, KEYBOARD.DOT]:
+        elif key in [KEY.RIGHT, KEY.DOT]:
             rerender = handler.roll_left()
 
-        elif key in [KEYBOARD.A, KEYBOARD.D, KEYBOARD.S]:
+        elif key in [KEY.A, KEY.D, KEY.S]:
 
             if amount == 1:
-                if key != KEYBOARD.D:
+                if key != KEY.D:
                     continue
                 idx = 0
 
             elif amount == 2 and len(handler) > 1:
 
-                if key == KEYBOARD.A:
+                if key == KEY.A:
                     idx = 0
-                elif key == KEYBOARD.D:
+                elif key == KEY.D:
                     idx = 1
 
-                elif key == KEYBOARD.S:
+                elif key == KEY.S:
                     difference = handler.get_relative(0).focus - handler.get_relative(1).focus
 
                     if abs(difference) < args.treshold:
@@ -128,18 +128,18 @@ def sift(args):
             handler.delete_image(idx, amount)
             rerender = True
 
-        elif key in [KEYBOARD.Y, KEYBOARD.Z]:
+        elif key in [KEY.Y, KEY.Z]:
             handler.restore_last()
             rerender = True
 
-        elif key == KEYBOARD.F:
+        elif key == KEY.F:
             display.toggle_fullscreen()
 
-        elif key == KEYBOARD.P:
+        elif key == KEY.P:
             display.toggle_text_embeding()
             rerender = True
 
-        elif key == KEYBOARD.L:
+        elif key == KEY.L:
             if swap_mode:
                 display.render_border()
             else:
@@ -147,17 +147,17 @@ def sift(args):
             swap_first = 0
             swap_mode = not swap_mode
 
-        elif key == KEYBOARD.R:
+        elif key == KEY.R:
             if resize_mode:
                 display.render_border()
             else:
                 display.render_border(BORDER.BLUE)
             resize_mode = not resize_mode
 
-        elif key in [KEYBOARD.ESC, KEYBOARD.X]:
+        elif key in [KEY.ESC, KEY.X]:
             break
 
-        elif KEYBOARD.ONE <= key < KEYBOARD.ONE + MAXIMUM_DISPLAY_SIZE:
+        elif KEY.ONE <= key < KEY.ONE + MAXIMUM_DISPLAY_SIZE:
 
             value = key - ord('0')
             if resize_mode:
