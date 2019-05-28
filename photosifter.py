@@ -5,24 +5,57 @@ import textwrap
 
 import src
 
+from src.display import MAXIMUM_DISPLAY_SIZE
 from src.resolver import resolve
 from src.sifter import sift
 
 
 def display_guide():
-    # TODO - write this guide better....
-    guide = """
-        keyboard shortcuts:
-           <Left> ,             move left
-           <Right> .            move right
-           <Esc> X              close the application
-           J K L                switch between view modes
-           Y Z                  revert last deletion
-           A D                  delete left/right image (only in DISPLAY_BOTH mode)
-           S                    delete image with worse focus value
-                                   (deletes current in DISPLAY_lEFT or DISPLAY_RIGHT modes)
-           F                    toggle fullscreen
-    """
+    guide = """        Photosifter is a simple application to sift through photos or images ...
+
+        Modes:
+
+          Local:
+            Sift through images in a given folder.
+
+          Remote:
+            Same as local mode but works with remote Google images. Tha application needs google
+            API secret and credentials to work remotely.
+
+          Resolve:
+            Find remote URLs of images based on their filenames. Note that this might not work
+            correctly if multiple images have the same filename. The number of searched images
+            is limited by default. Keyboard shortcuts bellow does not apply to this one.
+
+          Guide:
+            Not really a mode, just this guide.
+
+        Keyboard shortcuts:
+
+          Global:
+            <Left> | ,           move left
+            <Right> | .          move right
+            <Esc> | X            close the application
+            <Number>             delete image on nth shown position (nothing for not shown).
+            Y | Z                revert last deletion
+            P                    toggle text info (focus and filename)
+            F                    toggle fullscreen
+            R                    toggle resize mode
+            L                    toggle swap mode
+
+          Resize mode:  [blue border]
+            Change number of concurrently displayed images by pressing desired number (1-{})
+
+          Swap mode:    [green border]
+            Swap two images in the carousel by pressing position of both of them.
+
+          Size-dependent shortcuts:
+            These additional shortcuts are different based on the number of displayed images.
+
+            D                    delete current image                   [single image only]
+            A / D                delete left/right image                [double image only]
+            S                    delete image with worse focus value    [double image only]
+    """.format(MAXIMUM_DISPLAY_SIZE)
     print(textwrap.dedent(guide))
 
 
