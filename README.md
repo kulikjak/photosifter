@@ -16,7 +16,7 @@ Only `numpy` and `opencv-python` are needed to work locally, other requirements 
 
 The minimum version of Python runtime is 3.6 (due to the usage of f-Strings).
 
-Start by running `photosifter local <folder>` to sift through the images in a given folder, or run `photosifter guide` to see all modes of operation and app key bindings.
+Start by running `photosifter.py local <folder>` to sift through the images in a given folder, or run `photosifter.py guide` to see all modes of operation and app key bindings.
 
 ### Setting up the remote mode
 
@@ -39,7 +39,7 @@ Each time you use the app in remote mode, JSON file with image URLs of deleted i
 Before using it, you will also need to install selenium python package (`pip install selenium`) and download a chrome webdriver from [here](http://chromedriver.chromium.org/downloads). After all, is set up, you can start the script with:
 
 ```
-frontend_deleter --file yourfile.json
+frontend_deleter.py --file yourfile.json
 ```
 
 The first time you start the deleter, you will be asked to log into your Google Photos (sadly, since this is a different way of authentication, login from here and from `photosifter` cannot be combined into a single one), then deleter will proceed with the deletion. After all, images are deleted, deleter checks that they really are (that is why `404` screens start appearing, so don't worry). If some are still not deleted, it tries to do that once more.
@@ -51,6 +51,8 @@ Note that while tested, this way of deleting images is somewhat sketchy so there
 ## Known Issues
 
 Arrow keys can sometimes stop working after pressing `tab` key (not sure why). For that reason, there is a second set of keys with the same functionality (`,` and `.`). Restarting also solves this issue.
+
+`client_secret.json` and other files must be handled better (right now they must be in `cwd`, which is not good)
 
 ## Author
 
