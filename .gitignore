@@ -6,6 +6,5 @@ Photos
 chromedriver*
 
 # Files with oauth2 secrets and saved login info
-client_secret.json
 cookies.pkl
 credentials.json

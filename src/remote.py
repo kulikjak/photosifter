@@ -5,6 +5,19 @@ from apiclient.discovery import build  # pylint: disable=E0401
 from httplib2 import Http
 from oauth2client import client, file, tools
 
+from src import AUTH_BASE
+
+
+# Get absolute paths to auth related files
+credentials_file = os.path.join(AUTH_BASE, "credentials.json")
+client_secret_file = os.path.join(AUTH_BASE, "client_secret.json")
+
+
+def forget_credentials():
+    if os.path.isfile(credentials_file):
+        print("Forgetting current user")
+        os.remove(credentials_file)
+
 
 class GooglePhotosLibrary:
 
@@ -18,18 +31,18 @@ class GooglePhotosLibrary:
             SCOPES = 'https://www.googleapis.com/auth/photoslibrary'
 
             # If credentials file doesn't exist, create it to prevert warnings
-            if not os.path.isfile('credentials.json'):
-                open('credentials.json', 'a').close()
+            if not os.path.isfile(credentials_file):
+                open(credentials_file, 'a').close()
 
-            store = file.Storage('credentials.json')
+            store = file.Storage(credentials_file)
             creds = store.get()
             if not creds or creds.invalid:
 
                 # Check that client_server file exists
-                if not os.path.isfile('client_secret.json'):
+                if not os.path.isfile(client_secret_file):
                     raise OSError(2, "No such file or directory", "client_secret.json")
 
-                flow = client.flow_from_clientsecrets('client_secret.json', SCOPES)
+                flow = client.flow_from_clientsecrets(client_secret_file, SCOPES)
                 args = Namespace(logging_level='ERROR',
                                  auth_host_name='localhost',
                                  noauth_local_webserver=False,

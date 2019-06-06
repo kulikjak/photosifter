@@ -18,17 +18,13 @@ The minimum version of Python runtime is 3.6 (due to the usage of f-Strings).
 
 Start by running `photosifter.py local <folder>` to sift through the images in a given folder, or run `photosifter.py guide` to see all modes of operation and app key bindings.
 
-### Setting up the remote mode
+### Remote mode
 
-To run in the remote mode, you need to create a new Google Project and enable Google Photos API. To do so, go [here](https://developers.google.com/photos/library/guides/get-started#enable-the-api), click the big `ENABLE THE GOOGLE PHOTOS LIBRARY API` button and follow the instructions.
+The first time you use the app in a remote mode, you will be asked to give photosifter a proper authorization to work with your Google photos. The application will remember you, and you won't have to login again next time you use it. If you don't want to be remembered, pass `--forget-user` option to the application (this is important mainly on public machines).
 
-* Create a new project (the name is not important)
-* Set product name (again, not relevant)
-* Where are you calling from? - `Other`
+Note that Google Photos API is still young and very limited, and cannot be used directly for deleting images (or even adding them to albums). To get around this limitation, see the `frontend_deleter` section below. Also, due to this limitation, you won't have to be afraid that something wrong will happen with your images when using this application.
 
-After that, download client configuration, rename it to `client_secret.json` and place it into the application root folder.
-
-The first time you use the app in a remote mode, you will be asked to give your newly created project a proper authorization to work with your images. Note that Google Photos API is very limited, and cannot be used directly for deleting images or adding them to albums. To get around this limitation, see the `frontend_deleter` below.
+NOTE: If you want to [create](https://developers.google.com/photos/library/guides/get-started#enable-the-api) your own Google Project and use it instead of the supplied one, simply replace the `client_secret.json` file in the `auth` directory with yours. However, be assured that using the supplied project is not less secure than using your own.
 
 ### Frontend_deleter
 
@@ -51,8 +47,6 @@ Note that while tested, this way of deleting images is somewhat sketchy so there
 ## Known Issues
 
 Arrow keys can sometimes stop working after pressing `tab` key (not sure why). For that reason, there is a second set of keys with the same functionality (`,` and `.`). Restarting also solves this issue.
-
-`client_secret.json` and other files must be handled better (right now they must be in `cwd`, which is not good)
 
 ## Author
 

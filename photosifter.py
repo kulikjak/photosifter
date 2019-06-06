@@ -66,6 +66,8 @@ def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-v", "--verbose", action='store_true',
                         help="show more verbose console output")
+    parser.add_argument("-f", "--forget-user", action='store_true',
+                        help="forget previously remembered user")
 
     # create all subparsers
     subparsers = parser.add_subparsers(dest='action')
@@ -126,6 +128,9 @@ def main():
 
     elif args.action == 'resolve':
         resolve(args)
+
+    if args.forget_user:
+        src.remote.forget_credentials()
 
 
 if __name__ == "__main__":
