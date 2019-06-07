@@ -186,9 +186,3 @@ def sift(args):
 
     del display
     del handler
-
-
-if __name__ == "__main__":
-    sys.stderr.write("This program cannot be invoked directly.\n")
-    sys.stderr.write("Run it instead with 'photosifter remote'.\n")
-    sys.exit(1)

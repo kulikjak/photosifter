@@ -1,13 +1,10 @@
-
-# Note, that not all of these checks are necessarily supposed to succeed
-# as they are rather a quick way to check the current status of the code
-# base and fix those things which do make sense to fix.
+# This Makefile is used only by code checkers, not during build time.
 
 PYTHON_FILES = $(wildcard src/*.py)
 PYTHON_FILES += frontend_deleter.py photosifter.py
 
 # Disable:
-#   C0111: missing docstring (dom't need a docstring for two line methods...)
+#   C0111: missing docstring (don't need a docstring for two line methods...)
 #   C0103: naming style problem (to remain consistent with the Google Photos API)
 #   C0330: wrong continued indentation (sometimes looks better)
 #   R0902: too many instance attributes (don't care at all)

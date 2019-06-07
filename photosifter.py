@@ -118,7 +118,7 @@ def main():
     args = parser.parse_args()
 
     if args.verbose:
-        src._verbose = True
+        src.enable_verbose = True
 
     if args.action in ['local', 'remote']:
         sift(args)
