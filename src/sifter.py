@@ -13,7 +13,7 @@ from src.display import BORDER
 from src.image_handler import ImageHandler
 from src.image_handler import RemoteImageHandler
 
-# Don't really care about to many variables/branches/statemens....
+# Don't really care about to many variables/branches/statements....
 # pylint: disable=R0914,W0212,R0912,R0915
 
 
@@ -116,7 +116,7 @@ def sift(args):
                 elif key == KEY.S:
                     difference = handler.get_relative(0).focus - handler.get_relative(1).focus
 
-                    if abs(difference) < args.treshold:
+                    if abs(difference) < args.threshold:
                         continue
 
                     idx = int(difference > 0)

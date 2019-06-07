@@ -84,8 +84,8 @@ def get_parser():
     # local sifting related arguments
     local_parser.add_argument("images",
         help="path to the directory with images")
-    local_parser.add_argument("-t", "--treshold", default=0,
-        help="focus treshold for auto choosing (default 0)")
+    local_parser.add_argument("-t", "--threshold", default=0,
+        help="focus threshold for auto choosing (default 0)")
     local_parser.add_argument("-l", "--backup-maxlen", default=None, type=int,
         help="limit size of the backup buffer")
     local_parser.add_argument("-w", "--without-threading", action='store_false',
@@ -95,12 +95,12 @@ def get_parser():
     # remote sifting related arguments
     remote_parser.add_argument("images",
         help="path to the directory with images")
-    remote_parser.add_argument("-t", "--treshold", default=0,
-        help="focus treshold for auto choosing (default 0)")
+    remote_parser.add_argument("-t", "--threshold", default=0,
+        help="focus threshold for auto choosing (default 0)")
     remote_parser.add_argument("-l", "--backup-maxlen", default=None, type=int,
         help="limit size of the backup buffer")
 
-    # relover related arguments
+    # resolver related arguments
     resolve_parser.add_argument("-l", "--limit", type=int, default=1000,
         help="Limit number of photos remotely searched.")
     resolve_parser.add_argument("-d", "--dict", action="store_true",

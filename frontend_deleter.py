@@ -21,7 +21,7 @@ from selenium.common.exceptions import WebDriverException
 
 # Delete button title html attribute
 DELETE_BUTTON_TITLE = "Smazat"
-# Text inside the confirmation buttn
+# Text inside the confirmation button
 CONFIRMATION_TEXT = "Přesunout do koše"
 
 # Google photos server address
@@ -48,7 +48,7 @@ return found;
 
 
 def init_driver():
-    """Return initialized and logged-in driver or None if error occured."""
+    """Return initialized and logged-in driver or None if error occurred."""
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
     driver_location = os.path.join(dir_path, 'chromedriver')
@@ -77,7 +77,7 @@ def init_driver():
     except (EOFError, pickle.UnpicklingError) as err:
         print(f" err (file corrupted)\n Reason: {err}")
     except UnableToSetCookieException as err:
-        print(f"Unexpected error occured:\n{err}")
+        print(f"Unexpected error occurred:\n{err}")
 
     if cookies_success:
         driver.get(SERVER_ADDRESS)
@@ -187,7 +187,7 @@ def main():
     args = parser.parse_args()
 
     if args.file is None and not args.url:
-        parser.error('Either --file or atleast one --url is required.')
+        parser.error('Either --file or at least one --url is required.')
 
     file_data = []
     if args.file:
