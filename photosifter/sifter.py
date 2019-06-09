@@ -3,15 +3,15 @@ import os
 import sys
 import cv2
 
-from src import verbose
+from photosifter.util import verbose
 
-from src.remote import GooglePhotosLibrary
-from src.display import DisplayHandler
-from src.display import MAXIMUM_DISPLAY_SIZE
-from src.display import BORDER
+from photosifter.remote import GooglePhotosLibrary
+from photosifter.display import DisplayHandler
+from photosifter.display import MAXIMUM_DISPLAY_SIZE
+from photosifter.display import BORDER
 
-from src.image_handler import ImageHandler
-from src.image_handler import RemoteImageHandler
+from photosifter.image_handler import ImageHandler
+from photosifter.image_handler import RemoteImageHandler
 
 # Don't really care about to many variables/branches/statements....
 # pylint: disable=R0914,W0212,R0912,R0915

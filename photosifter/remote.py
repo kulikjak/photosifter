@@ -5,7 +5,7 @@ from apiclient.discovery import build  # pylint: disable=E0401
 from httplib2 import Http
 from oauth2client import client, file, tools
 
-from src import AUTH_BASE
+from photosifter.util import AUTH_BASE
 
 
 # Get absolute paths to auth related files

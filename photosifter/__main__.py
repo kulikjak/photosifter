@@ -3,11 +3,12 @@
 import argparse
 import textwrap
 
-import src
+from photosifter import util
+from photosifter import remote
 
-from src.display import MAXIMUM_DISPLAY_SIZE
-from src.resolver import resolve
-from src.sifter import sift
+from photosifter.display import MAXIMUM_DISPLAY_SIZE
+from photosifter.resolver import resolve
+from photosifter.sifter import sift
 
 
 def display_guide():
@@ -118,7 +119,7 @@ def main():
     args = parser.parse_args()
 
     if args.verbose:
-        src.enable_verbose = True
+        util.enable_verbose = True
 
     if args.action in ['local', 'remote']:
         sift(args)
@@ -130,7 +131,7 @@ def main():
         resolve(args)
 
     if args.forget_user:
-        src.remote.forget_credentials()
+        remote.forget_credentials()
 
 
 if __name__ == "__main__":

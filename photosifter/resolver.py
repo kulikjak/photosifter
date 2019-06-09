@@ -2,7 +2,7 @@ import json
 import os
 import sys
 
-from src.remote import GooglePhotosLibrary
+from photosifter.remote import GooglePhotosLibrary
 
 
 def resolve(args):

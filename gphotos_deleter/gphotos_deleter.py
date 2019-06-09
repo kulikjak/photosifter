@@ -20,9 +20,9 @@ from selenium.common.exceptions import WebDriverException
 
 
 # Delete button title html attribute
-DELETE_BUTTON_TITLE = "Smazat"
+DELETE_BUTTON_TITLE = "Delete"  # "Smazat"
 # Text inside the confirmation button
-CONFIRMATION_TEXT = "Přesunout do koše"
+CONFIRMATION_TEXT = "Move to bin"  # "Přesunout do koše"
 
 # Google photos server address
 SERVER_ADDRESS = 'https://photos.google.com/'
@@ -47,11 +47,22 @@ return found;
 """
 
 
-def init_driver():
+def init_driver(remember_user, driver_location=None):
     """Return initialized and logged-in driver or None if error occurred."""
 
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    driver_location = os.path.join(dir_path, 'chromedriver')
+    if driver_location is None:
+
+        # get current location
+        current = os.path.dirname(os.path.realpath(__file__))
+        local_driver = os.path.join(current, 'chromedriver')
+
+        # check if current folder contains chrome driver
+        if os.path.exists(local_driver):
+            driver_location = local_driver
+        else:
+            # fallback to chromedriver in PATH
+            driver_location = "chromedriver"
+
     try:
         driver = webdriver.Chrome(executable_path=driver_location)
     except WebDriverException as err:
@@ -95,8 +106,9 @@ def init_driver():
             return None
 
     # Save cookies for a future use (must be logged in here)
-    with open("cookies.pkl", "wb") as file:
-        pickle.dump(driver.get_cookies(), file)
+    if remember_user:
+        with open("cookies.pkl", "wb") as file:
+            pickle.dump(driver.get_cookies(), file)
 
     return driver
 
@@ -184,6 +196,10 @@ def main():
         help="Json file with list of urls.")
     parser.add_argument("-u", "--url", action="append", default=[],
         help="Additional Google photo image url (can have multiple).")
+    parser.add_argument("-c", "--chromedriver", action="store",
+        help="Path to chromedriver executable (optional).")
+    parser.add_argument("-r", "--remember-user", action='store_true',
+        help="Remember login cookie (save it to current directory).")
     args = parser.parse_args()
 
     if args.file is None and not args.url:
@@ -203,7 +219,7 @@ def main():
         print("No urls to process.")
         sys.exit(1)
 
-    driver = init_driver()
+    driver = init_driver(args.remember_user, args.chromedriver)
     if driver is None:
         sys.exit(1)
 

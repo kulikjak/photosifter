@@ -7,8 +7,8 @@ import time
 
 from collections import deque
 
-from src import verbose
-from src.image import Image
+from photosifter.util import verbose
+from photosifter.image import Image
 
 
 class JOB(enum.Enum):
@@ -352,7 +352,7 @@ class RemoteImageHandler(BaseImageHandler):
         deleted = [obj.productUrl for obj in self._images.values() if obj.deleted]
         if deleted:
             filename = f"{time.strftime('%Y%m%d_%H%M%S')}_deleted.json"
-            print(f"Generated file for use with frontend_deleter: {filename}.")
+            print(f"Generated file for use with gphotos_deleter: {filename}.")
 
             with open(filename, 'w') as outfile:
                 json.dump(deleted, outfile)

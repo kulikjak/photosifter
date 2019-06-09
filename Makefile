@@ -1,7 +1,6 @@
-# This Makefile is used only by code checkers, not during build time.
 
-PYTHON_FILES = $(wildcard src/*.py)
-PYTHON_FILES += frontend_deleter.py photosifter.py
+PYTHON_FILES = $(wildcard photosifter/*.py)
+PYTHON_FILES += $(wildcard gphotos_deleter/*.py)
 
 # Disable:
 #   C0111: missing docstring (don't need a docstring for two line methods...)
@@ -19,7 +18,23 @@ PYCODESTYLE_ARGS = --ignore=E128
 PYCODESTYLE_ARGS += --max-line-length=99
 
 
-all: pylint pycodestyle
+all: build check
+
+check: pylint pycodestyle
+
+
+clean:
+	rm -rf dist build *.egg-info
+
+build: clean
+	# remove accidentally left testing credentials
+	rm -f photosifter/auth/credentials.json gphotos_deleter/cookies.plk
+	python setup.py sdist bdist_wheel
+	twine check dist/*
+
+publish:
+	twine upload dist/*
+
 
 pylint: $(patsubst %, %.pylint, $(PYTHON_FILES))
 
