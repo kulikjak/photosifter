@@ -32,7 +32,7 @@ build: clean
 	python setup.py sdist bdist_wheel
 	twine check dist/*
 
-publish:
+publish: build
 	twine upload dist/*
 
 
