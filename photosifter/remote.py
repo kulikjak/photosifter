@@ -56,7 +56,7 @@ class GooglePhotosLibrary:
 
     def get_next(self):
         while True:
-            if not self._results['mediaItems']:
+            while 'mediaItems' not in self._results or not self._results['mediaItems']:
                 # nextPageToken can be missing but I have so many photos.....
                 self._results = self._service.mediaItems().list(
                     pageSize=self.PAGE_SIZE,
@@ -65,12 +65,12 @@ class GooglePhotosLibrary:
             mediaItem = self._results['mediaItems'][0]
             del self._results['mediaItems'][:1]
 
-            # Fix problem where GoogleAPI returns the same image twice...
-            if mediaItem['id'] == self._previous:
-                continue
-
             # This is an image file
             if 'photo' in mediaItem['mediaMetadata']:
+                # We cannot process gif files
+                if mediaItem['mimeType'] == 'image/gif':
+                    continue
+
                 self._previous = mediaItem['id']
                 return mediaItem
 
