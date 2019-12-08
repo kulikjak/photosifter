@@ -12,7 +12,9 @@ class Image:
         self._filename = filename
         self._path = path
 
-        self._downloaded = os.path.isfile(os.path.join(path, filename))
+        filepath = os.path.join(path, filename)
+        # consider file not downloaded if its size is zero
+        self._downloaded = os.path.isfile(filepath) and os.path.getsize(filepath)
         self._deleted = False
         self._focus = None
         self._base_image = None
