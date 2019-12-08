@@ -6,7 +6,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name="photosifter",
-    version="0.1.1",
+    version="0.1.2",
     description="Photo sifter is a simple application, written in Python, for smooth photo sifting and comparison.",
     long_description=README,
     long_description_content_type="text/markdown",
