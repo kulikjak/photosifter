@@ -7,6 +7,7 @@ from photosifter import util
 from photosifter import remote
 
 from photosifter.display import MAXIMUM_DISPLAY_SIZE
+from photosifter.downloader import download
 from photosifter.resolver import resolve
 from photosifter.sifter import sift
 
@@ -27,6 +28,10 @@ def display_guide():
             Find remote URLs of images based on their filenames. Note that this might not work
             correctly if multiple images have the same filename. The number of searched images
             is limited by default. Keyboard shortcuts bellow does not apply to this one.
+
+          Download:
+            Pre-download given amount of images from a remote library. Preloading images in
+            remote mode will then work much quicker.
 
           Guide:
             Not really a mode, just this guide.
@@ -81,6 +86,8 @@ def get_parser():
         help='Sift through images from remote Google Photos library.')
     resolve_parser = subparsers.add_parser('resolve',
         help='Search remote product URLs based on local filenames.')
+    download_parser = subparsers.add_parser('download',
+        help='Download images from remote Google Photos library.')
 
     # local sifting related arguments
     local_parser.add_argument("images",
@@ -109,6 +116,12 @@ def get_parser():
     resolve_parser.add_argument("path",
         help="Path to the to-be-resolved folder.")
 
+    # downloader related arguments
+    download_parser.add_argument("images",
+        help="path to the directory with images")
+    download_parser.add_argument("-n", "--amount", type=int, default=100,
+        help="number of images to download (default 100)")
+
     return parser
 
 
@@ -129,6 +142,9 @@ def main():
 
     elif args.action == 'resolve':
         resolve(args)
+
+    elif args.action == 'download':
+        download(args)
 
     if args.forget_user:
         remote.forget_credentials()
