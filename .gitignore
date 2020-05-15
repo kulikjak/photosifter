@@ -2,9 +2,11 @@ __venv__
 __pycache__
 Photos
 
-# Chromedriver and all of its variants
-chromedriver*
+# Webdrivers and all of its variants
+gphotos_deleter/chromedriver*
+gphotos_deleter/geckodriver*
 
 # Files with oauth2 secrets and saved login info
+cookies.txt
 cookies.pkl
 credentials.json
