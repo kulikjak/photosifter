@@ -17,6 +17,7 @@ except ImportError:
 
 from selenium.common.exceptions import UnableToSetCookieException
 from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import InvalidCookieDomainException
 
 
 # Delete button title html attribute
@@ -54,17 +55,17 @@ def init_driver(remember_user, driver_location=None):
 
         # get current location
         current = os.path.dirname(os.path.realpath(__file__))
-        local_driver = os.path.join(current, 'chromedriver')
+        local_driver = os.path.join(current, 'geckodriver')
 
         # check if current folder contains chrome driver
         if os.path.exists(local_driver):
             driver_location = local_driver
         else:
             # fallback to chromedriver in PATH
-            driver_location = "chromedriver"
+            driver_location = "geckodriver"
 
     try:
-        driver = webdriver.Chrome(executable_path=driver_location)
+        driver = webdriver.Firefox(executable_path=driver_location)
     except WebDriverException as err:
         print(f"Cannot start the chrome driver.\n{err}", end="")
         return None
@@ -78,7 +79,10 @@ def init_driver(remember_user, driver_location=None):
         with open("cookies.pkl", "rb") as infile:
             cookies = pickle.load(infile)
             for cookie in cookies:
-                driver.add_cookie(cookie)
+                try:
+                    driver.add_cookie(cookie)
+                except (UnableToSetCookieException, InvalidCookieDomainException):
+                    continue
         cookies_success = True
         print(" ok")
     except FileNotFoundError as err:
