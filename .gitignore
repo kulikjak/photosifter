@@ -9,4 +9,4 @@ gphotos_deleter/geckodriver*
 # Files with oauth2 secrets and saved login info
 cookies.txt
 cookies.pkl
-credentials.json
+token.json

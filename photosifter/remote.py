@@ -1,15 +1,16 @@
 import os
 from argparse import Namespace
 
-from apiclient.discovery import build  # pylint: disable=E0401
-from httplib2 import Http
-from oauth2client import client, file, tools
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
 
 from photosifter.util import AUTH_BASE
 
 
 # Get absolute paths to auth related files
-credentials_file = os.path.join(AUTH_BASE, "credentials.json")
+credentials_file = os.path.join(AUTH_BASE, "token.json")
 client_secret_file = os.path.join(AUTH_BASE, "client_secret.json")
 
 
@@ -28,27 +29,26 @@ class GooglePhotosLibrary:
 
         def get_photos_service():
             # Request read and write access without the sharing one
-            SCOPES = 'https://www.googleapis.com/auth/photoslibrary'
+            SCOPES = ['https://www.googleapis.com/auth/photoslibrary']
 
-            # If credentials file doesn't exist, create it to prevert warnings
-            if not os.path.isfile(credentials_file):
-                open(credentials_file, 'a').close()
+            creds = None
+            # The file token.json stores the user's access and refresh tokens, and is
+            # created automatically when the authorization flow completes for the first
+            # time.
+            if os.path.exists(credentials_file):
+                creds = Credentials.from_authorized_user_file(credentials_file, SCOPES)
+            # If there are no (valid) credentials available, let the user log in.
+            if not creds or not creds.valid:
+                if creds and creds.expired and creds.refresh_token:
+                    creds.refresh(Request())
+                else:
+                    flow = InstalledAppFlow.from_client_secrets_file(client_secret_file, SCOPES)
+                    creds = flow.run_local_server()
+                # Save the credentials for the next run
+                with open(credentials_file, 'w') as token:
+                    token.write(creds.to_json())
 
-            store = file.Storage(credentials_file)
-            creds = store.get()
-            if not creds or creds.invalid:
-
-                # Check that client_server file exists
-                if not os.path.isfile(client_secret_file):
-                    raise OSError(2, "No such file or directory", "client_secret.json")
-
-                flow = client.flow_from_clientsecrets(client_secret_file, SCOPES)
-                args = Namespace(logging_level='ERROR',
-                                 auth_host_name='localhost',
-                                 noauth_local_webserver=False,
-                                 auth_host_port=[8000, 8090])
-                creds = tools.run_flow(flow, store, args)
-            return build('photoslibrary', 'v1', http=creds.authorize(Http()))
+            return build('photoslibrary', 'v1', credentials=creds, static_discovery=False)
 
         self._previous = None
         self._service = get_photos_service()

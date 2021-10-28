@@ -6,7 +6,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name="photosifter",
-    version="0.1.2",
+    version="0.1.3",
     description="Photo sifter is a simple application, written in Python, for smooth photo sifting and comparison.",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -26,16 +26,20 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Topic :: Artistic Software",
         "Topic :: Multimedia :: Graphics",
     ],
     packages=["photosifter", "gphotos_deleter"],
     include_package_data=True,
     install_requires=[
-        "google-api-python-client>=1.7.0",
-        "numpy",
-        "opencv-python",
-        "oauth2client>=4.1.3"],
+        "google-api-python-client>=2.28.0",
+        "google-auth-httplib2>=0.1.0",
+        "google-auth-oauthlib>=0.4.6",
+        "numpy>=1.21.3",
+        "opencv-python>=4.2.0.32"],
     extras_require={
         'gphotos_deleter': [
             "selenium",
