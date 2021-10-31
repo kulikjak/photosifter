@@ -29,7 +29,7 @@ CONFIRMATION_TEXT = "Move to bin"  # "Přesunout do koše"
 SERVER_ADDRESS = 'https://photos.google.com/'
 
 JS_CLICK_DELETE = f"""
-node = document.querySelector('[title="{DELETE_BUTTON_TITLE}"]');
+node = document.querySelector('[aria-label="{DELETE_BUTTON_TITLE}"]');
 if (node == null)
   return false;
 node.click();
