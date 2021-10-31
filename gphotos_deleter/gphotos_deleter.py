@@ -11,8 +11,8 @@ try:
     from selenium import webdriver
 except ImportError:
     print("Cannot import selenium package. Is it installed?")
-    print("To run this script you will also need chrome webdriver.")
-    print("Download it here: http://chromedriver.chromium.org/downloads")
+    print("To run this script you will also need geckodriver.")
+    print("Download it here: https://github.com/mozilla/geckodriver/releases")
     sys.exit(100)
 
 from selenium.common.exceptions import UnableToSetCookieException
@@ -57,17 +57,17 @@ def init_driver(remember_user, driver_location=None):
         current = os.path.dirname(os.path.realpath(__file__))
         local_driver = os.path.join(current, 'geckodriver')
 
-        # check if current folder contains chrome driver
+        # check if current folder contains geckodriver
         if os.path.exists(local_driver):
             driver_location = local_driver
         else:
-            # fallback to chromedriver in PATH
+            # fallback to geckodriver in PATH
             driver_location = "geckodriver"
 
     try:
         driver = webdriver.Firefox(executable_path=driver_location)
     except WebDriverException as err:
-        print(f"Cannot start the chrome driver.\n{err}", end="")
+        print(f"Cannot start the gecko web driver.\n{err}", end="")
         return None
 
     driver.get(SERVER_ADDRESS)
@@ -200,8 +200,8 @@ def main():
         help="Json file with list of urls.")
     parser.add_argument("-u", "--url", action="append", default=[],
         help="Additional Google photo image url (can have multiple).")
-    parser.add_argument("-c", "--chromedriver", action="store",
-        help="Path to chromedriver executable (optional).")
+    parser.add_argument("-d", "--driver", action="store",
+        help="Path to geckodriver executable (optional).")
     parser.add_argument("-r", "--remember-user", action='store_true',
         help="Remember login cookie (save it to current directory).")
     args = parser.parse_args()
@@ -223,7 +223,7 @@ def main():
         print("No urls to process.")
         sys.exit(1)
 
-    driver = init_driver(args.remember_user, args.chromedriver)
+    driver = init_driver(args.remember_user, args.driver)
     if driver is None:
         sys.exit(1)
 
