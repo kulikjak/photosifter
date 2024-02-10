@@ -283,7 +283,11 @@ class ImageHandler(BaseImageHandler):
         """
 
         files = os.listdir(path)  # Throws IOError
-        filenames = [file for file in files if file.endswith(self.ALLOWED_IMAGE_EXTENSIONS)]
+        filenames = [
+            file
+            for file in files
+            if file.lower().endswith(self.ALLOWED_IMAGE_EXTENSIONS)
+        ]
         images = {filename: Image(filename, path) for filename in filenames}
 
         # NOTE: This way of sorting might not be the most efficient, but it works well
